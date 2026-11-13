@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, ArrowUpRight, CheckCircle2, Circle, Compass, GitCompareArrows, PlayCircle, Plus, Scale, Sparkles, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { ANIM, AXIS_TICK, CURSOR_LINE, ChartTooltip, FadeGradient, GRID, seriesColor } from "@/components/ui/chart";
 import { StatusBadge, VerdictBadge, WinBar } from "@/components/results/Verdict";
 import { PageHeader, Section, Stat, StatRow } from "@/components/ui/page";
 import { CountUp } from "@/components/ui/motion";
@@ -15,6 +16,8 @@ const FLOW = [
   { icon: <GitCompareArrows className="h-5 w-5" />, title: "2. 결과 나란히 보기", body: "단건 검색 비교로 같은 입력을 동시에 보내 결과를 나란히 봅니다." },
   { icon: <PlayCircle className="h-5 w-5" />, title: "3. 여러 입력으로 판정하기", body: "평가로 여러 입력을 채점해 개선·저하를 통계적으로 결론 냅니다." },
 ];
+
+const shortDate = (iso?: string | null) => (iso ? `${new Date(iso).getMonth() + 1}/${new Date(iso).getDate()}` : "");
 
 export default function Overview() {
   const { data, isLoading } = useQuery({
@@ -31,7 +34,6 @@ export default function Overview() {
   // 평가를 시작하려면 판정 모델·비교 세트가 있어야 한다. 없으면 '새 평가' 대신 다음 준비 단계로 안내
   const canRun = (data.counts.judge_models ?? 0) > 0 && (data.counts.suites ?? 0) > 0;
   const c = costs.data;
-  const PALETTE = ["rgb(var(--accent))", "#14b8a6", "#f59e0b", "#ec4899", "#8b5cf6", "#0ea5e9"];
   const spent = (c?.models ?? []).filter((m) => m.cost > 0);
   const costSection = (
     <Section title="이번 달" description="전체 비용을 먼저 보고, 각 숫자를 누르면 해당 화면으로 이동합니다.">
@@ -52,13 +54,16 @@ export default function Overview() {
             )}
           </div>
           <div className="min-w-0">
-            <div className="flex h-2.5 overflow-hidden rounded-full bg-subtle">
-              {spent.map((m, i) => <span key={m.key} className="h-full transition-[width] duration-700" style={{ width: `${m.share * 100}%`, background: PALETTE[i % PALETTE.length] }} />)}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px]">
+            {/* 모델이 하나면 100% 막대는 정보가 없으므로 생략 */}
+            {spent.length > 1 && (
+              <div className="mb-3 flex h-2.5 gap-[3px] overflow-hidden rounded-full">
+                {spent.map((m, i) => <span key={m.key} className="h-full origin-left animate-[bar-x_0.7s_var(--ease-out)_both] rounded-full" style={{ width: `${m.share * 100}%`, background: seriesColor(i) }} />)}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12.5px]">
               {spent.length ? spent.map((m, i) => (
                 <span key={m.key} className="inline-flex items-center gap-1.5 text-muted">
-                  <span className="h-2 w-2 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />
+                  <span className="h-2 w-2 rounded-full" style={{ background: seriesColor(i) }} />
                   {m.name} <b className="num font-semibold text-ink">{fmt.usd(m.cost)}</b>
                 </span>
               )) : <span className="text-muted">이번 달에는 아직 판정 비용이 없습니다.</span>}
@@ -159,26 +164,35 @@ export default function Overview() {
       )}
 
       {data.trend.length > 1 && (
-        <Section title="최근 결과 추이" description="완료된 실행마다 후보의 nDCG 차이입니다. 위로 솟을수록 기준보다 좋았습니다.">
-          <Card className="py-5">
-            <div className="h-[200px]">
+        <Section title="최근 결과 추이" description="완료된 실행마다 후보의 nDCG 차이입니다. 0 위면 기준보다 좋았고, 점에 올리면 실행을 볼 수 있습니다.">
+          <div className="border-y border-line py-6">
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.trend} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="id" tickFormatter={(v) => `#${v}`} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={40} />
-                  <ReferenceLine y={0} stroke="rgb(var(--line))" />
-                  <RTooltip cursor={{ fill: "rgb(var(--subtle))" }} content={({ active, payload }) => active && payload?.[0] ? (
-                    <div className="rounded-lg bg-ink px-3 py-2 text-[12px] text-panel shadow-lg">
-                      <div className="font-semibold">{String(payload[0].payload.name)}</div>
-                      <div className="num">nDCG 차이 {fmt.signed(payload[0].payload.ndcg_diff as number)}</div>
-                    </div>) : null} />
-                  <Bar dataKey="ndcg_diff" radius={[4, 4, 4, 4]} maxBarSize={36}>
-                    {data.trend.map((t) => <Cell key={t.id} fill={t.ndcg_diff >= 0 ? "rgb(var(--good))" : "rgb(var(--bad))"} />)}
-                  </Bar>
-                </BarChart>
+                <AreaChart data={data.trend} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}>
+                  <defs><FadeGradient id="trend-fill" color={seriesColor(0)} /></defs>
+                  <CartesianGrid {...GRID} vertical={false} />
+                  {/* 같은 날 여러 번 돌리면 날짜가 겹치므로, 앞 점과 날짜가 다를 때만 표시 */}
+                  <XAxis dataKey="id" interval={0} tick={AXIS_TICK} axisLine={false} tickLine={false} tickMargin={8}
+                    tickFormatter={(_, i) => {
+                      const d = shortDate(data.trend[i]?.finished_at);
+                      return i > 0 && shortDate(data.trend[i - 1]?.finished_at) === d ? "" : d;
+                    }} />
+                  <YAxis tickFormatter={(v) => fmt.signed(v, 2)} tick={AXIS_TICK} axisLine={false} tickLine={false} width={48} />
+                  <ReferenceLine y={0} stroke="rgb(var(--faint) / 0.6)" />
+                  <RTooltip cursor={CURSOR_LINE} content={({ active, payload }) => active && payload?.[0] ? (
+                    <ChartTooltip title={<><span className="num mr-1 text-faint">#{String(payload[0].payload.id)}</span>{String(payload[0].payload.name)}</>}
+                      rows={[{ color: seriesColor(0), name: "nDCG 차이", value: fmt.signed(payload[0].payload.ndcg_diff as number) }]}
+                      footer={fmt.date(String(payload[0].payload.finished_at))} />) : null} />
+                  <Area type="monotone" dataKey="ndcg_diff" stroke={seriesColor(0)} strokeWidth={2} fill="url(#trend-fill)"
+                    dot={({ cx, cy, payload }: { cx?: number; cy?: number; payload?: { id: number; ndcg_diff: number } }) => (
+                      <circle key={payload?.id} cx={cx} cy={cy} r={3.5} strokeWidth={2} stroke="rgb(var(--panel))"
+                        fill={(payload?.ndcg_diff ?? 0) >= 0 ? "rgb(var(--good))" : "rgb(var(--bad))"} />
+                    )}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: "rgb(var(--panel))" }} {...ANIM} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          </Card>
+          </div>
         </Section>
       )}
 

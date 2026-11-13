@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowRight, ChevronDown, Info } from "lucide-react";
 import { useState } from "react";
-import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { ANIM, AXIS_TICK, BAD, CURSOR_FILL, ChartEmpty, ChartTooltip, GOOD, GRID, NEUTRAL } from "@/components/ui/chart";
 import { TermTip } from "@/components/ui/overlay";
 import { Link } from "react-router-dom";
 import { Collapsible, Section, Stat, StatRow } from "@/components/ui/page";
@@ -108,28 +109,27 @@ function TargetTable({ targets, k, candidate }: { targets: TargetSummary[]; k: n
 
 function DiffChart({ cases, onOpen }: { cases: CaseRow[]; onOpen: (id: number) => void }) {
   const data = cases.filter((c) => c.ndcg_diff !== null).map((c) => ({ id: c.id, key: c.case_key, diff: c.ndcg_diff as number })).sort((a, b) => b.diff - a.diff);
-  if (!data.length) return <div className="py-10 text-center text-sm text-muted">비교할 케이스가 아직 없습니다.</div>;
+  if (!data.length) return <ChartEmpty>비교할 케이스가 아직 없습니다.</ChartEmpty>;
+  // 축을 데이터 범위에 맞춘다(고정 −1~1 이면 대부분 비어 보인다). 0.25 단위로 올림.
+  const lim = Math.min(1, Math.max(0.25, Math.ceil(Math.max(...data.map((d) => Math.abs(d.diff))) * 4) / 4));
   return (
-    <div className="h-[260px]">
+    <div className="h-[240px]">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }} barCategoryGap={1}>
+        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }} barCategoryGap="18%">
+          <CartesianGrid {...GRID} vertical={false} />
           <XAxis dataKey="key" tick={false} axisLine={false} height={4} />
-          <YAxis domain={[-1, 1]} ticks={[-1, -0.5, 0, 0.5, 1]} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={32} />
-          <ReferenceLine y={0} stroke="rgb(var(--line))" />
+          <YAxis domain={[-lim, lim]} ticks={[-lim, -lim / 2, 0, lim / 2, lim]} tickFormatter={(v) => fmt.signed(v, 2)} tick={AXIS_TICK} axisLine={false} tickLine={false} width={44} />
+          <ReferenceLine y={0} stroke="rgb(var(--faint) / 0.6)" />
           <RTooltip
-            cursor={{ fill: "rgb(var(--subtle))" }}
+            cursor={CURSOR_FILL}
             content={({ active, payload }) =>
               active && payload?.[0] ? (
-                <div className="rounded-lg bg-ink px-3 py-2 text-[12px] text-panel shadow-lg">
-                  <div className="font-semibold">{String(payload[0].payload.key)}</div>
-                  <div className="num">nDCG 차이 {fmt.signed(payload[0].payload.diff as number)}</div>
-                  <div className="opacity-70">눌러서 케이스 보기</div>
-                </div>
+                <ChartTooltip title={String(payload[0].payload.key)} rows={[{ name: "nDCG 차이", value: fmt.signed(payload[0].payload.diff as number) }]} footer="눌러서 케이스 보기" />
               ) : null
             }
           />
-          <Bar dataKey="diff" radius={[2, 2, 2, 2]} onClick={(d: { id?: number }) => d.id && onOpen(d.id)} className="cursor-pointer">
-            {data.map((d) => <Cell key={d.id} fill={d.diff > 1e-9 ? "rgb(var(--good))" : d.diff < -1e-9 ? "rgb(var(--bad))" : "rgb(var(--line))"} />)}
+          <Bar dataKey="diff" radius={3} maxBarSize={14} onClick={(d: { id?: number }) => d.id && onOpen(d.id)} className="cursor-pointer" {...ANIM}>
+            {data.map((d) => <Cell key={d.id} fill={d.diff > 1e-9 ? GOOD : d.diff < -1e-9 ? BAD : NEUTRAL} />)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -256,8 +256,8 @@ export function RunSummaryView({
         <Card className="py-5"><DiffChart cases={cases} onOpen={onOpenCase} /></Card>
       </Section>
       {(summary.by_category?.length ?? 0) > 1 && (
-        <Section title="분류별" description="어느 영역에서 좋아지고 나빠졌는지 봅니다.">
-          <div className="mb-6 border-y border-line py-6"><CategoryBars summary={summary} targets={targets} /></div>
+        <Section title="분류별" description={`분류마다 ${candidate} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다. 막대에 올리면 실제 값이 보입니다.`}>
+          <div className="mb-6 border-y border-line py-6"><CategoryBars summary={summary} targets={targets} candidate={candidate} /></div>
           <Collapsible title="분류별 숫자로 보기">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">

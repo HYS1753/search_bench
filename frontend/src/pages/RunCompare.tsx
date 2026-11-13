@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, ErrorBar, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { VerdictBadge, WinBar } from "@/components/results/Verdict";
+import { ANIM, AXIS_TICK, BAD, CATEGORY_TICK, CURSOR_FILL, ChartTooltip, GOOD, GRID, NEUTRAL } from "@/components/ui/chart";
 import { PageHeader, Section, Segmented, Stat, StatRow } from "@/components/ui/page";
 import { Alert, Badge, PageSkeleton, Select } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
@@ -133,18 +134,18 @@ export default function RunCompare() {
         <div className="h-[260px] border-y border-line py-4">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-              <CartesianGrid vertical={false} stroke="rgb(var(--line))" strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fill: "rgb(var(--muted))" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={44} />
-              <ReferenceLine y={0} stroke="rgb(var(--faint))" />
-              <RTooltip cursor={{ fill: "rgb(var(--subtle))" }} content={({ active, payload }) => active && payload?.[0] ? (
-                <div className="rounded-xl bg-ink px-3 py-2 text-[12px] text-panel shadow-lg">
-                  <div className="font-semibold">{String(payload[0].payload.full)}</div>
-                  <div className="num">차이 {fmt.signed(payload[0].payload.diff as number)} · 구간 {payload[0].payload.ci ? `${fmt.signed(payload[0].payload.ci[0])} ~ ${fmt.signed(payload[0].payload.ci[1])}` : "–"}</div>
-                </div>) : null} />
-              <Bar dataKey="diff" radius={[4, 4, 4, 4]} maxBarSize={56} animationDuration={700}>
-                {chart.map((c) => <Cell key={c.name} fill={c.ci && c.ci[0] > 0 ? "rgb(var(--good))" : c.ci && c.ci[1] < 0 ? "rgb(var(--bad))" : "rgb(var(--faint))"} />)}
-                <ErrorBar dataKey="err" width={8} strokeWidth={1.5} stroke="rgb(var(--ink))" direction="y" />
+              <CartesianGrid {...GRID} vertical={false} />
+              <XAxis dataKey="name" tick={CATEGORY_TICK} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => fmt.signed(v, 2)} tick={AXIS_TICK} axisLine={false} tickLine={false} width={48} />
+              <ReferenceLine y={0} stroke="rgb(var(--faint) / 0.6)" />
+              <RTooltip cursor={CURSOR_FILL} content={({ active, payload }) => active && payload?.[0] ? (
+                <ChartTooltip title={String(payload[0].payload.full)} rows={[
+                  { name: "nDCG 차이", value: fmt.signed(payload[0].payload.diff as number) },
+                  { name: "95% 구간", value: payload[0].payload.ci ? `${fmt.signed(payload[0].payload.ci[0])} ~ ${fmt.signed(payload[0].payload.ci[1])}` : "–" },
+                ]} />) : null} />
+              <Bar dataKey="diff" radius={6} maxBarSize={44} {...ANIM}>
+                {chart.map((c) => <Cell key={c.name} fill={c.ci && c.ci[0] > 0 ? GOOD : c.ci && c.ci[1] < 0 ? BAD : NEUTRAL} />)}
+                <ErrorBar dataKey="err" width={6} strokeWidth={1.5} stroke="rgb(var(--ink) / 0.55)" direction="y" />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Bot, Coins, Info, Settings2, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { ANIM, AXIS_TICK, CURSOR_LINE, ChartTooltip, FadeGradient, GRID, SERIES } from "@/components/ui/chart";
 import { StatusBadge } from "@/components/results/Verdict";
 import { CountUp } from "@/components/ui/motion";
 import { PageHeader, Section, Segmented, Stat, StatRow } from "@/components/ui/page";
@@ -20,7 +21,6 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: "all", label: "전체" },
 ];
 const PERIOD_TEXT: Record<Period, string> = { "7d": "최근 7일", "30d": "최근 30일", "90d": "최근 90일", month: "이번 달", all: "전체 기간" };
-const PALETTE = ["rgb(var(--accent))", "#14b8a6", "#f59e0b", "#ec4899", "#8b5cf6", "#0ea5e9", "#84cc16", "#f97316"];
 
 export const compact = (n: number) =>
   n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}K` : n.toLocaleString("ko-KR");
@@ -49,9 +49,10 @@ export default function Costs() {
   if (isLoading || !data) return <PageSkeleton />;
 
   const t = data.totals;
-  const color = (name: string) => PALETTE[Math.max(0, data.series.indexOf(name)) % PALETTE.length];
+  const color = (name: string) => SERIES[Math.max(0, data.series.indexOf(name)) % SERIES.length];
   const used = data.models.filter((m) => m.cost > 0 || m.judge_calls > 0);
-  const chartDaily = data.daily.map((d) => ({ date: d.date, ...d.by_model, total: d.total }));
+  // 쓰지 않은 날도 모델마다 0 을 채워야 영역 차트가 끊기지 않는다
+  const chartDaily = data.daily.map((d) => ({ date: d.date, ...Object.fromEntries(data.series.map((s) => [s, 0])), ...d.by_model, total: d.total }));
   const tick = (d: string) => {
     const [, m, day] = d.split("-");
     return `${Number(m)}/${Number(day)}`;
@@ -113,31 +114,26 @@ export default function Costs() {
             </div>
             <div className="h-[230px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartDaily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                  <CartesianGrid vertical={false} stroke="rgb(var(--line))" strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={tick} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} minTickGap={18} />
-                  <YAxis tickFormatter={(v) => `$${Number(v) >= 10 ? Number(v).toFixed(0) : Number(v).toFixed(2)}`} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={48} />
+                <AreaChart data={chartDaily} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <defs>{data.series.map((s, i) => <FadeGradient key={s} id={`cost-fill-${i}`} color={color(s)} />)}</defs>
+                  <CartesianGrid {...GRID} vertical={false} />
+                  <XAxis dataKey="date" tickFormatter={tick} tick={AXIS_TICK} axisLine={false} tickLine={false} minTickGap={24} tickMargin={8} />
+                  <YAxis tickFormatter={(v) => `$${Number(v) >= 10 ? Number(v).toFixed(0) : Number(v).toFixed(2)}`} tick={AXIS_TICK} axisLine={false} tickLine={false} width={48} />
                   <RTooltip
-                    cursor={{ fill: "rgb(var(--subtle))" }}
+                    cursor={CURSOR_LINE}
                     content={({ active, payload, label }) =>
                       active && payload?.length ? (
-                        <div className="min-w-[160px] rounded-xl bg-ink px-3 py-2.5 text-[12px] text-panel shadow-lg">
-                          <div className="mb-1.5 font-semibold">{String(label)}</div>
-                          {payload.filter((p) => Number(p.value) > 0).map((p) => (
-                            <div key={String(p.dataKey)} className="flex items-center justify-between gap-4">
-                              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: String(p.color) }} />{String(p.dataKey)}</span>
-                              <span className="num">{fmt.usd(Number(p.value))}</span>
-                            </div>
-                          ))}
-                          <div className="mt-1.5 flex justify-between border-t border-white/15 pt-1.5"><span>합계</span><span className="num font-semibold">{fmt.usd(Number(payload[0].payload.total))}</span></div>
-                        </div>
+                        <ChartTooltip title={String(label)}
+                          rows={payload.filter((p) => Number(p.value) > 0).map((p) => ({ color: String(p.color), name: String(p.dataKey), value: fmt.usd(Number(p.value)) }))}
+                          footer={<span className="flex justify-between"><span>합계</span><span className="num font-semibold text-ink">{fmt.usd(Number(payload[0].payload.total))}</span></span>} />
                       ) : null
                     }
                   />
                   {data.series.map((s, i) => (
-                    <Bar key={s} dataKey={s} stackId="c" fill={color(s)} maxBarSize={22} radius={i === data.series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} animationDuration={700} />
+                    <Area key={s} type="monotone" dataKey={s} stackId="c" stroke={color(s)} strokeWidth={2} fill={`url(#cost-fill-${i})`}
+                      dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "rgb(var(--panel))" }} {...ANIM} />
                   ))}
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -203,8 +199,9 @@ export default function Costs() {
         )}
       </Section>
 
-      <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] [&>*]:min-w-0">
-        <Section title="비율">
+      {/* 모델이 하나면 도넛은 100% 한 덩어리라 정보가 없으므로, 둘 이상일 때만 비율을 보여 준다 */}
+      <div className={cn("grid grid-cols-1 gap-x-12 [&>*]:min-w-0", used.filter((m) => m.cost > 0).length > 1 && "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]")}>
+        {used.filter((m) => m.cost > 0).length > 1 && <Section title="모델별 비율">
           {used.some((m) => m.cost > 0) ? (
             <div className="relative h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -213,7 +210,7 @@ export default function Costs() {
                     {used.filter((m) => m.cost > 0).map((m) => <Cell key={m.key} fill={color(m.name)} />)}
                   </Pie>
                   <RTooltip content={({ active, payload }) => active && payload?.[0] ? (
-                    <div className="rounded-xl bg-ink px-3 py-2 text-[12px] text-panel shadow-lg">{String(payload[0].name)} · <span className="num">{fmt.usd(Number(payload[0].value))}</span></div>
+                    <ChartTooltip rows={[{ color: color(String(payload[0].name)), name: String(payload[0].name), value: fmt.usd(Number(payload[0].value)) }]} />
                   ) : null} />
                 </PieChart>
               </ResponsiveContainer>
@@ -225,7 +222,7 @@ export default function Costs() {
           ) : (
             <div className="flex h-[240px] items-center justify-center border-y border-line text-sm text-muted">표시할 비용이 없습니다.</div>
           )}
-        </Section>
+        </Section>}
 
         <Section title="비용이 큰 평가" actions={<Link to="/runs" className="text-[13px] font-medium text-accent">전체 기록 →</Link>}>
           {data.top_runs.length ? (

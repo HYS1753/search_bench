@@ -20,6 +20,8 @@
   --warn-soft: 254 246 222;
   --glow-a: 252 231 238;
   --glow-b: 226 246 238;
+  /* 차트 계열 색(채도 낮춤) */
+  --chart-2: 56 178 160; --chart-3: 226 160 72; --chart-4: 222 112 156; --chart-5: 84 160 222; --chart-6: 150 120 230;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -30,6 +32,7 @@
     --good: 52 199 140; --good-soft: 18 46 36; --bad: 255 118 118; --bad-soft: 60 26 28;
     --warn: 240 180 70; --warn-soft: 56 44 18;
     --glow-a: 40 28 46; --glow-b: 18 40 34;
+    --chart-2: 86 208 188; --chart-3: 240 186 100; --chart-4: 240 140 180; --chart-5: 112 184 246; --chart-6: 176 150 250;
     color-scheme: dark;
   }
 }
@@ -40,6 +43,7 @@
   --good: 52 199 140; --good-soft: 18 46 36; --bad: 255 118 118; --bad-soft: 60 26 28;
   --warn: 240 180 70; --warn-soft: 56 44 18;
   --glow-a: 40 28 46; --glow-b: 18 40 34;
+  --chart-2: 86 208 188; --chart-3: 240 186 100; --chart-4: 240 140 180; --chart-5: 112 184 246; --chart-6: 176 150 250;
   color-scheme: dark;
 }
 
@@ -81,6 +85,7 @@ mark { background: rgb(var(--warn-soft)); color: inherit; border-radius: 3px; pa
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(16px); } }
 @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes bar-x { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes bar-grow { from { transform: scaleY(0.2); } to { transform: none; } }
 @keyframes draw { from { stroke-dashoffset: var(--len, 100); } to { stroke-dashoffset: 0; } }
 @keyframes check-pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; } }
