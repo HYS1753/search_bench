@@ -81,10 +81,23 @@ def test_batch_run_end_to_end_and_exports(app_client, setup_suite):
     page = html.text
     assert page.startswith("<!doctype html>") and "<script" not in page and "http://" not in page.split("<main")[0]
     assert cmp["verdict"]["title"] in page and "C01" in page and "TOBE vs ASIS" in page
+    assert "Overlap@3" in page and "Pairwise ↔ ΔnDCG" in page and "Graded relevance by rank" in page
 
     xlsx = app_client.get(f"/api/runs/{run['id']}/export", params={"format": "xlsx"})
     wb = load_workbook(io.BytesIO(xlsx.content))
-    assert wb.sheetnames == ["요약", "케이스", "항목 판정", "목록 비교", "설정"]
+    assert wb.sheetnames == ["요약", "케이스", "항목 판정", "목록 비교", "지표 상세", "설정"]
+
+    # 상세 지표: ASIS 는 정답을 2위, TOBE 는 1위에 둔다(같은 3개 결과, 순서만 다름)
+    d = app_client.get(f"/api/runs/{run['id']}/details", params={"candidate": "TOBE"}).json()
+    assert d["cases"] == 12 and d["baseline"] == "ASIS"
+    assert d["overlap"]["mean_jaccard"] == 1.0 and d["overlap"]["top1_same_rate"] == 0.0 and d["overlap"]["identical_rate"] == 0.0
+    assert d["grade_by_rank"]["candidate"][0]["mean"] == 3.0 and d["grade_by_rank"]["baseline"][0]["mean"] == 1.0
+    assert d["relevant_found"]["items"] == {"both": 12, "baseline_only": 0, "candidate_only": 0}
+    assert d["agreement"]["agree_rate"] == 1.0 and d["agreement"]["matrix"]["candidate"]["up"] == 12
+    assert d["first_rank"]["candidate"][0] == 12 and d["first_rank"]["baseline"][1] == 12
+    assert app_client.get(f"/api/runs/{run['id']}/details", params={"candidate": "ASIS"}).status_code == 400
+    exported = json.loads(app_client.get(f"/api/runs/{run['id']}/export", params={"format": "json"}).text)
+    assert exported["details"]["TOBE"]["overlap"]["mean_jaccard"] == 1.0
     csv_text = app_client.get(f"/api/runs/{run['id']}/export", params={"format": "csv"}).text
     assert csv_text.startswith("﻿케이스") and csv_text.count("\n") == 13
     js = app_client.get(f"/api/runs/{run['id']}/export", params={"format": "json"}).json()

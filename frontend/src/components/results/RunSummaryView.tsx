@@ -158,7 +158,9 @@ export function RunSummaryView({
   onOpenCase,
   onShowOutcome,
   live,
+  runId,
 }: {
+  runId?: number;
   summary: RunSummary;
   k: number;
   candidate: string;
@@ -235,7 +237,7 @@ export function RunSummaryView({
         </StatRow>
       </Collapsible>
       <RunCharts summary={summary} k={k} cmp={cmp} />
-      <MetricDetails summary={summary} cases={cases} candidate={candidate} baseline={cmp.baseline} cmp={cmp} k={k} onOpenCase={onOpenCase} />
+      <MetricDetails runId={runId} summary={summary} cases={cases} candidate={candidate} baseline={cmp.baseline} cmp={cmp} k={k} onOpenCase={onOpenCase} />
       <Collapsible className="mb-14" title="대상별 지표 숫자로 보기" summary="위 차트의 값을 표로 봅니다. 후보가 기준보다 좋으면 초록, 나쁘면 빨강.">
         <TargetTable targets={targets} k={k} candidate={candidate} />
         {(summary.no_relevant_cases ?? 0) > 0 && (

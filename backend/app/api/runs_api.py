@@ -18,6 +18,7 @@ from app.validation import members_spec, row_inputs, validate_rows
 from app.db import get_db, session_scope
 from app.exports import to_csv, to_json, to_xlsx
 from app.report_html import to_html
+from app.evaluation.details import comparison_details
 from app.models import Criteria, Dataset, DatasetRow, JudgeModel, Run, RunCase, Suite, utcnow
 from app.runs import ACTIVE, compute_summary, hub, manager, run_progress
 
@@ -309,6 +310,17 @@ def rename_run(run_id: int, body: RenameIn, db: Session = Depends(get_db)) -> di
     run = get_or_404(db, Run, run_id, "실행")
     run.name = body.name.strip()
     return run_out(run, with_summary=False)
+
+
+@router.get("/runs/{run_id}/details")
+def run_details_api(run_id: int, candidate: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """후보 vs 기준 상세 지표(결과 겹침·순위별 등급·관련 결과 발견·목록 비교와 nDCG 일치도 등)."""
+    run = get_or_404(db, Run, run_id, "실행")
+    cases = db.scalars(select(RunCase).where(RunCase.run_id == run_id).options(selectinload(RunCase.responses))).all()
+    out = comparison_details(run, list(cases), candidate)
+    if out is None:
+        raise bad_request(f"비교할 후보가 아닙니다: {candidate}")
+    return out
 
 
 @router.get("/runs/{run_id}/cases")

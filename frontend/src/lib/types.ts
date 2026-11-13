@@ -551,3 +551,33 @@ export interface CostReport {
   top_runs: { id: number; name: string; status: RunStatus; model: string; cases: number; judge_calls: number; cost: number; created_at: string }[];
   unpriced: string[];
 }
+
+/** /runs/{id}/details — 후보 vs 기준 상세 지표 */
+export interface RunDetails {
+  candidate: string;
+  baseline: string;
+  k: number;
+  relevant_threshold: number;
+  cases: number;
+  overlap: {
+    cases: number;
+    mean_jaccard: number | null;
+    top1_same_rate: number | null;
+    identical_rate: number | null;
+    hist: number[];
+    mean_filled: { baseline: number | null; candidate: number | null };
+    short_rate: { baseline: number | null; candidate: number | null };
+  };
+  grade_by_rank: Record<"baseline" | "candidate", { rank: number; mean: number | null; relevant_rate: number | null; n: number }[]>;
+  relevant_found: {
+    items: { both: number; baseline_only: number; candidate_only: number };
+    cases: { gain: number; same: number; loss: number };
+  };
+  agreement: {
+    matrix: Record<"candidate" | "tie" | "baseline", { up: number; same: number; down: number }>;
+    cases: number;
+    agree_rate: number | null;
+    opposite_rate: number | null;
+    confidence: { high: number; medium: number; low: number };
+  };
+}

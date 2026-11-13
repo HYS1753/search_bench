@@ -9,6 +9,7 @@ from typing import Any
 
 from app.evaluation.prompts import GRADE_LABELS
 from app.models import Run, RunCase
+from app.evaluation.details import run_details
 from app.runs import member_prefix
 
 WINNER_KO = {"candidate": "후보 승", "baseline": "기준 승", "tie": "무승부"}
@@ -84,6 +85,7 @@ def to_json(run: Run, cases: list[RunCase]) -> str:
         | {"members": [{**m, "target": {k: v for k, v in m["target"].items() if k != "secret_enc"}} for m in run.snapshot.get("members", [])]},
         "options": run.options,
         "summary": run.summary,
+        "details": run_details(run, cases),
         "cases": [
             {
                 "case": c.case_key, "category": c.category, "inputs": c.inputs, "expected": c.expected,
@@ -191,6 +193,29 @@ def to_xlsx(run: Run, cases: list[RunCase]) -> bytes:
                               orders[0]["reason"] if len(orders) > 0 else "", orders[1]["reason"] if len(orders) > 1 else ""])
     sheet("목록 비교", ["케이스", "후보", "결과", "순서 일치", "비고", "최종 근거", "1차 근거", "2차 근거"], pair_rows,
           {6: 60, 7: 50, 8: 50})
+
+    detail_rows: list[list[Any]] = []
+    for cand, d in run_details(run, cases).items():
+        b, ov, rf, ag = d["baseline"], d["overlap"], d["relevant_found"], d["agreement"]
+        detail_rows += [
+            [f"{cand} vs {b}", f"상위 {d['k']}개 · 관련 ≥ {d['relevant_threshold']} · 비교 케이스 {d['cases']}건"],
+            ["Overlap@k 결과 겹침 (평균 Jaccard)", _fmt(ov["mean_jaccard"])],
+            ["Top-1 same 1위 동일 비율", _fmt(ov["top1_same_rate"])],
+            ["Identical 순서까지 동일 비율", _fmt(ov["identical_rate"])],
+            [f"Filled@k 평균 결과 수 ({b} / {cand})", f"{_fmt(ov['mean_filled']['baseline'], 2)} / {_fmt(ov['mean_filled']['candidate'], 2)}"],
+            [f"k개 미만 반환 비율 ({b} / {cand})", f"{_fmt(ov['short_rate']['baseline'])} / {_fmt(ov['short_rate']['candidate'])}"],
+            ["관련 결과: 양쪽 모두 / 기준만 / 후보만 (항목 수)", f"{rf['items']['both']} / {rf['items']['baseline_only']} / {rf['items']['candidate_only']}"],
+            ["관련 결과 수: 늘어난 / 같은 / 줄어든 케이스", f"{rf['cases']['gain']} / {rf['cases']['same']} / {rf['cases']['loss']}"],
+            ["Pairwise ↔ ΔnDCG 같은 방향 비율", _fmt(ag["agree_rate"])],
+            ["Pairwise ↔ ΔnDCG 반대 방향 비율", _fmt(ag["opposite_rate"])],
+            ["판정 확신도 high / medium / low", " / ".join(str(ag["confidence"][c]) for c in ("high", "medium", "low"))],
+            ["순위", f"{b} 평균 등급", f"{cand} 평균 등급", f"{b} 관련 비율", f"{cand} 관련 비율"],
+            *[[r["rank"], _fmt(r["mean"], 2), _fmt(d["grade_by_rank"]["candidate"][i]["mean"], 2), _fmt(r["relevant_rate"]), _fmt(d["grade_by_rank"]["candidate"][i]["relevant_rate"])]
+              for i, r in enumerate(d["grade_by_rank"]["baseline"])],
+            [],
+        ]
+    if detail_rows:
+        sheet("지표 상세", ["항목", "값", "", "", ""], detail_rows, {1: 44, 2: 28, 3: 16, 4: 16, 5: 16})
 
     crit = run.snapshot.get("criteria", {})
     by_member = run.snapshot.get("criteria_by_member") or {}

@@ -295,7 +295,7 @@ export default function RunDetail() {
                 아직 사람 판정이 없습니다. <button className="font-medium text-accent" onClick={() => setTab("review")}>사람 검수</button> 탭에서 케이스를 채점하면 {basis === "combined" ? "결합" : "사람"} 점수가 생깁니다.
               </Alert>
             ) : (
-              <RunSummaryView summary={view} k={k} candidate={cand} cases={allCases.data?.items ?? []} onOpenCase={setCaseId} onShowOutcome={showOutcome} live={!!active} />
+              <RunSummaryView runId={r.id} summary={view} k={k} candidate={cand} cases={allCases.data?.items ?? []} onOpenCase={setCaseId} onShowOutcome={showOutcome} live={!!active} />
             )}
           </>
         );

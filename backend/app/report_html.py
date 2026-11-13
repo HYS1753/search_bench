@@ -11,6 +11,7 @@ from typing import Any
 
 from app.evaluation.prompts import GRADE_LABELS
 from app.models import Run, RunCase
+from app.evaluation.details import run_details
 from app.runs import member_prefix
 
 WINNER_KO = {"candidate": "후보 승", "baseline": "기준 승", "tie": "무승부"}
@@ -300,6 +301,106 @@ def _cases_table(run: Run, cases: list[RunCase], candidate: str, baseline: str) 
             f'<th>목록 비교</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
+GRADE_ROWS = [3, 2, 1, 0, -1]
+GRADE_TXT = {3: "3 매우 관련", 2: "2 관련", 1: "1 약간", 0: "0 무관", -1: "결과 없음"}
+
+
+def _bars(groups: list[str], series: list[tuple[str, str, list[float]]], unit: str = "%") -> str:
+    """세로 묶음 막대(CSS). series = [(이름, 색, 값들)] — 값은 0~100(%)"""
+    mx = max([v for _, _, vals in series for v in vals] + [1])
+    cols = []
+    for i, g in enumerate(groups):
+        bars = "".join(f'<span title="{e(name)} {vals[i]:.0f}{unit}" style="height:{vals[i] / mx * 100:.1f}%;background:{col}"></span>' for name, col, vals in series)
+        cols.append(f'<div class="vcol"><div class="vbars">{bars}</div><div class="vlab">{e(g)}</div></div>')
+    legend = "".join(f'<span><i style="background:{col}"></i>{e(name)}</span>' for name, col, _ in series)
+    return f'<div class="vchart">{"".join(cols)}</div><div class="legend" style="margin-top:8px">{legend}</div>'
+
+
+def _heat(rows: list[tuple[str, Any]], cols: list[tuple[str, Any]], get, tone, corner: str) -> str:
+    mx = max([get(r, c) for _, r in rows for _, c in cols] + [1])
+    head = "".join(f"<th class='c'>{e(lb)}</th>" for lb, _ in cols)
+    body = []
+    for lb, r in rows:
+        cells = []
+        for _, c in cols:
+            n = get(r, c)
+            a = 0.12 + n / mx * 0.55 if n else 0
+            t = tone(r, c)
+            bg = "var(--subtle)" if not n else f"rgba(13,148,104,{a:.2f})" if t == "good" else f"rgba(214,64,69,{a:.2f})" if t == "bad" else f"rgba(152,160,174,{a * 0.7:.2f})"
+            cells.append(f'<td class="hc num" style="background:{bg}">{n or "·"}</td>')
+        body.append(f"<tr><th class='hr'>{e(lb)}</th>{''.join(cells)}</tr>")
+    return f'<table class="heat"><thead><tr><th class="hr muted">{e(corner)}</th>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>'
+
+
+def _nums(items: list[tuple[str, str, str]]) -> str:
+    return '<div class="nums">' + "".join(f'<div><div class="label">{e(lb)}</div><div class="nval num {t}">{v}</div></div>' for lb, v, t in items) + "</div>"
+
+
+def _rank_svg(d: dict[str, Any], cb: str, cc: str) -> str:
+    k = d["k"]
+    w, h, pad = 600, 200, 28
+    xs = lambda i: pad + (w - 2 * pad) * (i / max(1, k - 1))  # noqa: E731
+    ys = lambda g: h - pad - (h - 2 * pad) * (g / 3)  # noqa: E731
+    lines = []
+    for side, col in (("baseline", cb), ("candidate", cc)):
+        pts = [(xs(i), ys(r["mean"])) for i, r in enumerate(d["grade_by_rank"][side]) if r["mean"] is not None]
+        if pts:
+            lines.append(f'<polyline fill="none" stroke="{col}" stroke-width="2.5" stroke-linejoin="round" points="{" ".join(f"{x:.1f},{y:.1f}" for x, y in pts)}"/>')
+            lines += [f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="{col}"/>' for x, y in pts]
+    grid = "".join(f'<line x1="{pad}" x2="{w - pad}" y1="{ys(g):.1f}" y2="{ys(g):.1f}" class="grid"/><text x="4" y="{ys(g) + 4:.1f}" class="axis">{g}</text>' for g in range(4))
+    thr = f'<line x1="{pad}" x2="{w - pad}" y1="{ys(d["relevant_threshold"]):.1f}" y2="{ys(d["relevant_threshold"]):.1f}" stroke="var(--good)" stroke-opacity=".5" stroke-dasharray="4 4"/>'
+    xl = "".join(f'<text x="{xs(i):.1f}" y="{h - 6}" text-anchor="middle" class="axis">{i + 1}위</text>' for i in range(k))
+    return f'<svg viewBox="0 0 {w} {h}" class="linesvg" role="img" aria-label="순위별 평균 등급">{grid}{thr}{"".join(lines)}{xl}</svg>'
+
+
+def _details_sections(run: Run, cases: list[RunCase], targets: list[dict[str, Any]]) -> list[str]:
+    out = []
+    for cand, d in run_details(run, cases).items():
+        base, k, n = d["baseline"], d["k"], d["cases"] or 1
+        cb, cc = _target_color(targets, base), _target_color(targets, cand)
+        if cb == "#b4bac6":
+            cb = "#9aa1ad"
+        head = f'<h3 class="dhead">{e(cand)} vs {e(base)} <span class="ko">상위 {k}개 · 관련 ≥ {d["relevant_threshold"]} · {d["cases"]}건</span></h3>'
+        # 분포 2종
+        hist = _bars([f"{i / 10:.1f}" for i in range(10)], [(f"{base} (기준)", cb, [v / n * 100 for v in d["ndcg_hist"]["baseline"]]), (cand, cc, [v / n * 100 for v in d["ndcg_hist"]["candidate"]])])
+        ranks = _bars([f"{i + 1}위" for i in range(k)] + ["없음"], [(f"{base} (기준)", cb, [v / n * 100 for v in d["first_rank"]["baseline"]]), (cand, cc, [v / n * 100 for v in d["first_rank"]["candidate"]])])
+        tr = d["grade_transition"]
+        trans = _heat([(GRADE_TXT[g], g) for g in GRADE_ROWS], [(GRADE_TXT[g], g) for g in GRADE_ROWS], lambda r, c: tr.get(f"{r}:{c}", 0),
+                      lambda r, c: "good" if c > r else "bad" if c < r else "", f"{base} ↓ · {cand} →")
+        ov = d["overlap"]
+        overlap = _nums([("평균 겹침 (Jaccard)", num(ov["mean_jaccard"], 2), ""), ("1위 동일", pct(ov["top1_same_rate"]), ""), ("순서까지 동일", pct(ov["identical_rate"]), "")]) + \
+            _bars(["0–0.2", "0.2–0.4", "0.4–0.6", "0.6–0.8", "0.8–1"], [("케이스 비율", "rgba(91,107,240,.75)", [v / (ov["cases"] or 1) * 100 for v in ov["hist"]])]) + \
+            f'<p class="desc" style="margin-top:8px">평균 결과 수 {e(base)} {num(ov["mean_filled"]["baseline"], 1)} · {e(cand)} {num(ov["mean_filled"]["candidate"], 1)} / {k}</p>'
+        rf = d["relevant_found"]
+        tot = sum(rf["items"].values()) or 1
+        parts = [(rf["items"]["baseline_only"], "var(--bad-s)", f"{base} 만 찾음"), (rf["items"]["both"], "var(--neutral-s)", "양쪽 모두"), (rf["items"]["candidate_only"], "var(--good-s)", f"{cand} 만 찾음")]
+        cover = (f'<div class="splitbar">{"".join(f"<span style=width:{v / tot * 100:.2f}%;background:{col}></span>" for v, col, _ in parts if v)}</div>'
+                 f'<div class="legend">{"".join(f"<span><i style=background:{col}></i>{e(lb)} <b class=num>{v}</b></span>" for v, col, lb in parts)}</div>'
+                 f'<p class="desc" style="margin-top:8px">케이스별 관련 결과 수 <span class="good">늘어남 {rf["cases"]["gain"]}</span> · 같음 {rf["cases"]["same"]} · <span class="bad">줄어듦 {rf["cases"]["loss"]}</span></p>')
+        ag = d["agreement"]
+        conf = ag["confidence"]
+        ct = sum(conf.values())
+        agree = _nums([("같은 방향", pct(ag["agree_rate"]), "good"), ("반대 방향", pct(ag["opposite_rate"]), "bad" if (ag["opposite_rate"] or 0) > 0.2 else ""),
+                       ("판정 확신도 high", pct(conf["high"] / ct) if ct else "–", "")]) + \
+            _heat([(f"{cand} 승", "candidate"), ("무승부", "tie"), (f"{base} 승", "baseline")], [("nDCG ↑", "up"), ("nDCG =", "same"), ("nDCG ↓", "down")],
+                  lambda r, c: ag["matrix"][r][c],
+                  lambda r, c: "good" if (r, c) in (("candidate", "up"), ("baseline", "down"), ("tie", "same")) else "bad" if (r, c) in (("candidate", "down"), ("baseline", "up")) else "",
+                  "목록 비교 ↓ · ΔnDCG →")
+        rank_legend = f'<div class="legend"><span><i style="background:{cb}"></i>{e(base)} (기준)</span><span><i style="background:{cc}"></i>{e(cand)}</span></div>'
+        out.append(
+            f'<section>{head}'
+            f'<div class="pair"><div><h3>{_mt(f"nDCG@{k} distribution", "nDCG 분포")}</h3>{hist}</div>'
+            f'<div><h3>{_mt("MRR · First relevant rank", "첫 관련 결과의 순위 분포")}</h3>{ranks}</div></div>'
+            f'<div class="pair"><div><h3>{_mt("Top-1 grade transition", "1위 등급 변화")}</h3>{trans}</div>'
+            f'<div><h3>{_mt("Graded relevance by rank", "순위별 평균 등급")}</h3>{_rank_svg(d, cb, cc)}{rank_legend}</div></div>'
+            f'<div class="pair"><div><h3>{_mt(f"Overlap@{k}", "결과 겹침")}</h3>{overlap}</div>'
+            f'<div><h3>{_mt("Relevant coverage", "관련 결과 발견")}</h3>{cover}</div></div>'
+            f'<div class="pair"><div><h3>{_mt("Pairwise ↔ ΔnDCG", "목록 비교와 nDCG 일치도")}</h3>{agree}</div><div></div></div>'
+            f'</section>'
+        )
+    return out
+
+
 def _settings(run: Run) -> str:
     snap = run.snapshot
     crit = snap.get("criteria", {})
@@ -390,6 +491,15 @@ h2 .ko,h3 .ko,.label .ko{font-weight:400;color:var(--muted)}h2 .ko{font-size:15p
 .ftrack{position:relative;height:22px}.ftrack i{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}.ftrack i.z{background:var(--faint)}
 .fci{position:absolute;top:50%;height:3px;margin-top:-1.5px;border-radius:99px;background:var(--faint);opacity:.55}.fci.good{background:var(--good)}.fci.bad{background:var(--bad)}
 .fdot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid var(--panel);background:var(--faint)}.fdot.good{background:var(--good)}.fdot.bad{background:var(--bad)}
+.dhead{font-size:16px;margin:8px 0 4px}.vchart{display:flex;align-items:flex-end;gap:6px;height:150px;border-bottom:1px solid var(--line);padding-top:6px}
+.vcol{flex:1;display:flex;flex-direction:column;align-items:stretch;height:100%;min-width:0}.vbars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+.vbars span{display:block;width:40%;max-width:14px;border-radius:4px 4px 0 0;min-height:1px}.vlab{font-size:10.5px;color:var(--faint);text-align:center;padding-top:4px;white-space:nowrap}
+.heat{border-collapse:separate;border-spacing:3px;font-size:12px;width:100%}.heat th{border:0;padding:2px 4px;font-weight:500;color:var(--muted);font-size:11.5px}.heat .hr{text-align:left;white-space:nowrap}
+.hc{height:32px;text-align:center;font-weight:600;border-radius:8px;border:0;padding:0}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:12px}.nums>div{padding:10px 0}.nums>div+div{border-left:1px solid var(--line);padding-left:12px}
+.nums .label{font-size:12px;color:var(--muted)}.nval{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.linesvg{width:100%;height:auto;display:block}.linesvg .axis{font-size:11px;fill:var(--faint)}.linesvg .grid{stroke:var(--line);stroke-dasharray:3 5}
+.pair+.pair{margin-top:18px}
 footer{margin-top:56px;color:var(--faint);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
 @media (max-width:760px){.frow{grid-template-columns:1fr;gap:4px}.fhead{display:none}.page{padding:28px 16px 48px}.stats{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0;padding-left:0}.pair{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv dt{border-bottom:0;padding-bottom:0}}
 @media print{body{background:#fff}.page{padding:0;max-width:none}section{break-inside:avoid-page}.cases tr{break-inside:avoid}.tablewrap{overflow:visible}
@@ -449,6 +559,10 @@ def to_html(run: Run, cases: list[RunCase]) -> str:
                   f'<span class="muted">같음 {primary.get("same_cases", 0)}</span><span class="bad">저하 {primary.get("regressed_cases", 0)}</span></div>')
         parts.append(_section(f"ΔnDCG@{k} by case", f"막대 하나가 케이스 하나이고, 높이는 {cand} − {base} 의 nDCG 차이입니다. 위 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.",
                               counts + _diff_svg(diffs), ko="케이스별 nDCG 차이"))
+        details = _details_sections(run, cases, targets)
+        if details:
+            parts.append(_section("지표 상세", "요약 숫자 뒤의 분포와 결과 변화입니다. 후보마다 기준과 비교합니다.", ""))
+            parts.extend(details)
         cat = _category(s, cand, base)
         if cat:
             parts.append(_section(f"ΔnDCG@{k} by category", f"분류마다 {cand} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다.", cat, ko="분류별 nDCG 차이"))
