@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 247 248 250;
+  --panel: 255 255 255;
+  --subtle: 242 244 247;
+  --line: 230 232 236;
+  --ink: 20 24 33;
+  --muted: 102 110 124;
+  --faint: 152 160 174;
+  --accent: 91 107 240;
+  --accent-soft: 238 240 254;
+  --good: 13 148 104;
+  --good-soft: 229 247 239;
+  --bad: 214 64 69;
+  --bad-soft: 253 237 237;
+  --warn: 196 128 6;
+  --warn-soft: 254 246 222;
+  --glow-a: 252 231 238;
+  --glow-b: 226 246 238;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: 14 16 21; --panel: 22 25 32; --subtle: 30 34 43; --line: 42 47 58;
+    --ink: 232 235 240; --muted: 160 168 182; --faint: 112 120 135;
+    --accent: 132 145 255; --accent-soft: 35 39 70;
+    --good: 52 199 140; --good-soft: 18 46 36; --bad: 255 118 118; --bad-soft: 60 26 28;
+    --warn: 240 180 70; --warn-soft: 56 44 18;
+    --glow-a: 40 28 46; --glow-b: 18 40 34;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: 14 16 21; --panel: 22 25 32; --subtle: 30 34 43; --line: 42 47 58;
+  --ink: 232 235 240; --muted: 160 168 182; --faint: 112 120 135;
+  --accent: 132 145 255; --accent-soft: 35 39 70;
+  --good: 52 199 140; --good-soft: 18 46 36; --bad: 255 118 118; --bad-soft: 60 26 28;
+  --warn: 240 180 70; --warn-soft: 56 44 18;
+  --glow-a: 40 28 46; --glow-b: 18 40 34;
+  color-scheme: dark;
+}
+
+html, body, #root { height: 100%; }
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+  background-image:
+    radial-gradient(900px 520px at 100% -10%, rgb(var(--glow-a) / 0.55), transparent 70%),
+    radial-gradient(800px 600px at 60% 110%, rgb(var(--glow-b) / 0.45), transparent 70%);
+  background-attachment: fixed;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+::selection { background: rgb(var(--accent) / 0.2); }
+.num { font-variant-numeric: tabular-nums; }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 8px; }
+mark { background: rgb(var(--warn-soft)); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+.break-keep { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* ── 모션 시스템 ────────────────────────────────────────────
+   원칙(Linear·Vercel·Raycast 류): 짧게(120–260ms), 작게(4–8px), ease-out, 의미 있을 때만.
+   진입은 opacity + 살짝 위로, 퇴장은 더 짧게. prefers-reduced-motion 이면 모두 끈다. */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes scale-in { from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes scale-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -49%) scale(0.98); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes slide-in-right { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slide-out-right { from { transform: none; opacity: 1; } to { transform: translateX(28px); opacity: 0; } }
+@keyframes slide-in-left { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(16px); } }
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes bar-grow { from { transform: scaleY(0.2); } to { transform: none; } }
+@keyframes draw { from { stroke-dashoffset: var(--len, 100); } to { stroke-dashoffset: 0; } }
+@keyframes check-pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: none; } }
+
+.animate-page { animation: fade-up 0.34s var(--ease-out) both; }
+.animate-fade-up { animation: fade-up 0.4s var(--ease-out) both; }
+.animate-fade-in { animation: fade-in 0.2s var(--ease-out) both; }
+.animate-pop { animation: pop-in 0.18s var(--ease-out) both; }
+.animate-check { animation: check-pop 0.36s var(--ease-spring) both; }
+
+/* 목록·섹션 순차 등장 */
+.stagger > * { animation: fade-up 0.42s var(--ease-out) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Radix 오버레이: data-state 로 열림·닫힘 */
+.overlay-anim[data-state="open"] { animation: fade-in 0.18s var(--ease-out); }
+.overlay-anim[data-state="closed"] { animation: fade-out 0.14s var(--ease-in-out); }
+.dialog-anim[data-state="open"] { animation: scale-in 0.2s var(--ease-out); }
+.dialog-anim[data-state="closed"] { animation: scale-out 0.12s var(--ease-in-out); }
+.drawer-anim[data-state="open"] { animation: slide-in-right 0.28s var(--ease-out); }
+.drawer-anim[data-state="closed"] { animation: slide-out-right 0.16s var(--ease-in-out); }
+.tooltip-anim[data-state="delayed-open"], .tooltip-anim[data-state="instant-open"] { animation: pop-in 0.14s var(--ease-out); }
+.toast-in { animation: toast-in 0.26s var(--ease-out) both; }
+.toast-out { animation: toast-out 0.18s var(--ease-in-out) both; }
+.mobile-nav-in { animation: slide-in-left 0.26s var(--ease-out); }
+
+/* 스켈레톤 */
+.skeleton {
+  background: linear-gradient(90deg, rgb(var(--subtle)) 0%, rgb(var(--line) / 0.55) 40%, rgb(var(--subtle)) 80%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+
+/* 로고 막대: 처음 한 번 자라는 모션, 마우스를 올리면 다시 */
+.logo-bars rect { transform-box: fill-box; transform-origin: bottom; animation: bar-grow 0.6s var(--ease-spring) both; }
+.logo-bars rect:nth-child(2) { animation-delay: 60ms; }
+.logo-bars rect:nth-child(3) { animation-delay: 120ms; }
+a:hover .logo-bars rect { animation: bar-grow 0.5s var(--ease-spring) both; }
+a:hover .logo-bars rect:nth-child(2) { animation-delay: 50ms; }
+a:hover .logo-bars rect:nth-child(3) { animation-delay: 100ms; }
+
+/* 상호작용 기본값 */
+.press { transition: transform 0.12s var(--ease-out), background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; }
+.press:active:not(:disabled) { transform: scale(0.98); }
+.row-link { transition: background-color 0.15s var(--ease-out); }
+.row-link .row-arrow { transition: transform 0.2s var(--ease-out), opacity 0.2s; opacity: 0.4; }
+.row-link:hover .row-arrow { transform: translateX(3px); opacity: 1; }
+.lift { transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), border-color 0.2s; }
+.lift:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 24px -8px rgb(16 24 40 / 0.14); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@keyframes toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }

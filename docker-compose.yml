@@ -1,0 +1,23 @@
+# 사용: cp .env.example .env  →  docker compose up -d --build  →  http://localhost:8000
+services:
+  judge:
+    build: .
+    image: llm-as-a-judge:latest
+    container_name: llm-as-a-judge
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_PORT: "8000"
+      DATA_DIR: /app/data
+    volumes:
+      # 설정·데이터셋·실행 결과·암호화 키가 모두 여기에 남는다. 지우면 초기 상태로 돌아간다.
+      - judge-data:/app/data
+      # Vertex AI 서비스 계정 파일을 쓸 때만 주석 해제하고 GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/sa.json 설정
+      # - ./secrets/sa.json:/app/secrets/sa.json:ro
+
+volumes:
+  judge-data:

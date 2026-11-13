@@ -1,0 +1,15 @@
+# 실행 데이터·키·로컬 환경은 이미지에 넣지 않는다
+data/
+**/*.db
+**/*.db-*
+**/secret.key
+.env
+.env.*
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+backend/static/
+backend/tests/
+docs/

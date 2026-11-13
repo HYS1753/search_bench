@@ -1,0 +1,25 @@
+# ── 실행 데이터: 절대 커밋하지 않는다 (SQLite·업로드·암호화 키·내보내기) ──
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+secret.key
+
+# ── 환경 변수(키 포함) ──
+.env
+.env.*
+!.env.example
+
+# ── 빌드·의존성 ──
+.venv/
+__pycache__/
+.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+backend/static/
+*.tsbuildinfo
+
+# 저장소 루트 .gitignore 의 파이썬 "lib/" 규칙이 화면 소스까지 막지 않게 한다
+!frontend/src/lib/
