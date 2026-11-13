@@ -10,7 +10,7 @@ import { ShareDialog } from "@/components/results/ShareDialog";
 import { RunSummaryView } from "@/components/results/RunSummaryView";
 import { StatusBadge } from "@/components/results/Verdict";
 import { Menu, Tooltip, useConfirm } from "@/components/ui/overlay";
-import { KeyValue, PageHeader, Section, Segmented, Tabs } from "@/components/ui/page";
+import { KeyValue, Section, Segmented, Tabs } from "@/components/ui/page";
 import { Alert, Badge, Button, Card, Code, Input, PageSkeleton, Progress, Select, Spinner } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { api, download, qs } from "@/lib/api";
@@ -120,6 +120,30 @@ export default function RunDetail() {
     setTab("cases");
   };
 
+  // 머리글의 탭이 화면 위로 지나가면(모바일은 상단 막대 56px 아래) 축소 막대를 보인다
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  const loaded = !!run.data;
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const top = () => (window.matchMedia("(min-width: 1024px)").matches ? 0 : 56);
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < top() + 1), { rootMargin: `-${top()}px 0px 0px 0px`, threshold: 0 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loaded]);
+  // 축소 막대에서 탭을 바꾸면 새 탭의 맨 위(막대 바로 아래)로 부드럽게 이동
+  const barRef = useRef<HTMLDivElement>(null);
+  const jumpToTabs = () => {
+    // 새 탭이 그려진 다음에 위치를 재서, 새 탭의 첫 줄이 막대 바로 아래 오게 한다
+    setTimeout(() => {
+      const el = tabsRef.current;
+      if (!el) return;
+      const offset = (window.matchMedia("(min-width: 1024px)").matches ? 0 : 56) + (barRef.current?.offsetHeight ?? 92);
+      const target = el.getBoundingClientRect().bottom + window.scrollY - offset + 4;
+      window.scrollTo({ top: target, behavior: "smooth" });
+    }, 0);
+  };
   if (run.isLoading) return <PageSkeleton />;
   if (!r) return <Alert tone="bad">실행을 찾을 수 없습니다.</Alert>;
   const k = r.criteria?.k ?? 5;
@@ -127,20 +151,32 @@ export default function RunDetail() {
   const pending = r.total - r.completed;
   const canResume = !active && pending > 0 && ["interrupted", "cancelled", "failed", "done"].includes(r.status);
 
+  const meta = `#${r.id} · ${r.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")} · ${r.dataset_name ?? "-"}${r.dataset_version ? ` v${r.dataset_version}` : ""} · 판정 ${r.judge_model?.name ?? "-"} (${r.judge_model?.model ?? ""}) · 시작 ${fmt.date(r.started_at ?? r.created_at)} · 소요 ${fmt.duration(r.started_at, r.finished_at)}`;
+  const tabItems: { value: Tab; label: string; count?: number }[] = [
+    { value: "summary", label: "요약" }, { value: "cases", label: "케이스", count: r.total },
+    { value: "review", label: "사람 검수", count: r.summary?.review?.reviewed_cases ?? 0 }, { value: "settings", label: "실행 설정" },
+  ];
   return (
     <>
       <Link to="/runs" className="mb-4 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" />평가 실행 기록</Link>
-      <PageHeader
-        compactTitle
-        title={
-          <span className="flex min-w-0 items-center gap-3">
-            <Tooltip content={r.name}><span className="min-w-0 truncate">{r.name}</span></Tooltip>
-            <span className="shrink-0 text-[14px] font-normal tracking-normal"><StatusBadge status={r.status} /></span>
-          </span>
-        }
-        description={`#${r.id} · ${r.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")} · ${r.dataset_name ?? "-"}${r.dataset_version ? ` v${r.dataset_version}` : ""} · 판정 ${r.judge_model?.name ?? "-"} (${r.judge_model?.model ?? ""}) · 시작 ${fmt.date(r.started_at ?? r.created_at)} · 소요 ${fmt.duration(r.started_at, r.finished_at)}`}
-        actions={
-          <>
+      {/* 머리글: 제목 → 실행 정보(작게) → [비교 대상 | 동작 버튼] → 탭 */}
+      <header className="mb-6">
+        <h1 className="flex min-w-0 items-center gap-3 text-[28px] font-bold leading-tight tracking-tight text-ink">
+          <Tooltip content={r.name}><span className="min-w-0 truncate">{r.name}</span></Tooltip>
+          <span className="shrink-0 text-[14px] font-normal tracking-normal"><StatusBadge status={r.status} /></span>
+        </h1>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{meta}</p>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          {candidates.length > 1 ? (
+            <label className="flex items-center gap-2 text-[13px] text-muted">
+              비교 대상
+              <Select className="h-9 w-auto" value={cand} onChange={(e) => setCandidate(e.target.value)}>
+                {candidates.map((c) => <option key={c} value={c}>{c} vs 기준</option>)}
+              </Select>
+            </label>
+          ) : <span />}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+
             {active && <Button icon={<Pause className="h-4 w-4" />} loading={busy === "cancel"} onClick={() => act("cancel", () => api.post(`/runs/${id}/cancel`), "취소했습니다")}>취소</Button>}
             {canResume && <Button icon={<Play className="h-4 w-4" />} loading={busy === "resume"} onClick={() => act("resume", () => api.post(`/runs/${id}/resume`), "남은 케이스를 이어서 실행합니다")}>이어서 실행 ({pending}건)</Button>}
             {!active && (
@@ -189,9 +225,28 @@ export default function RunDetail() {
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-          </>
-        }
-      />
+          </div>
+        </div>
+        <div ref={tabsRef} className="mt-6">
+          <Tabs equal value={tab} onChange={setTab} items={tabItems} />
+        </div>
+      </header>
+
+      {/* 스크롤해 탭이 위로 지나가면: 제목+탭만 담은 막대가 위에 붙는다(버튼·설명은 접힘). 높이 0 인 sticky 라 본문이 밀리지 않는다 */}
+      <div className="sticky top-14 z-20 h-0 lg:top-0">
+        <div ref={barRef} aria-hidden={!stuck}
+          className={cn("absolute inset-x-0 top-0 -mx-4 border-b border-line bg-bg/[0.92] px-4 backdrop-blur-xl backdrop-saturate-150 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:-mx-8 sm:px-8 lg:-mx-14 lg:px-14",
+            stuck ? "translate-y-0 opacity-100 shadow-[0_10px_30px_-20px_rgb(16_24_40/0.35)]" : "pointer-events-none -translate-y-3 opacity-0")}>
+          <div className="mx-auto max-w-[1200px]">
+            <div className="flex min-w-0 items-center gap-2.5 pt-3">
+              <span className="min-w-0 truncate text-[16px] font-semibold tracking-tight" title={r.name}>{r.name}</span>
+              <StatusBadge status={r.status} />
+              {candidates.length > 1 && <span className="ml-auto shrink-0 text-[12.5px] text-muted">{cand} vs 기준</span>}
+            </div>
+            <Tabs equal value={tab} onChange={(t) => { setTab(t); jumpToTabs(); }} items={tabItems} className="border-b-0" />
+          </div>
+        </div>
+      </div>
 
       {(active || r.status === "interrupted") && (
         <Card className="mb-10 py-6">
@@ -212,19 +267,8 @@ export default function RunDetail() {
         </Alert>
       )}
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <Tabs value={tab} onChange={setTab} items={[
-          { value: "summary", label: "요약" }, { value: "cases", label: "케이스", count: r.total },
-          { value: "review", label: "사람 검수", count: r.summary?.review?.reviewed_cases ?? 0 }, { value: "settings", label: "실행 설정" },
-        ]} className="min-w-0 basis-full sm:basis-auto sm:flex-1" />
-        {candidates.length > 1 && (
-          <Select className="h-9 w-full sm:w-auto" value={cand} onChange={(e) => setCandidate(e.target.value)}>
-            {candidates.map((c) => <option key={c} value={c}>{c} vs 기준</option>)}
-          </Select>
-        )}
-      </div>
-
-      <div key={tab} className="animate-tab">
+      {/* 최소 한 화면 높이: 탭을 바꿔 내용이 잠깐 짧아져도 스크롤 위치가 맨 위로 튀지 않는다 */}
+      <div key={tab} className="animate-tab min-h-[100vh]">
       {tab === "summary" && r.summary && (() => {
         const rv = r.summary.review;
         const hasHuman = !!r.summary.combined;

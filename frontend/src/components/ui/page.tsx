@@ -140,23 +140,46 @@ export function Table({ head, children, minWidth = 640, className }: { head: Rea
   );
 }
 
-export function Tabs<T extends string>({ value, onChange, items, className }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode; count?: number }[]; className?: string }) {
+export function Tabs<T extends string>({ value, onChange, items, className, equal }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode; count?: number }[]; className?: string; equal?: boolean }) {
+  // 선택 밑줄을 한 줄로 그려 탭을 바꾸면 그 자리로 미끄러져 간다
+  const wrap = useRef<HTMLDivElement>(null);
+  const [bar, setBar] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = wrap.current?.querySelector<HTMLButtonElement>(`[data-tab="${CSS.escape(String(value))}"]`);
+      setBar(el ? { x: el.offsetLeft, w: el.offsetWidth } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (wrap.current) ro.observe(wrap.current);
+    return () => ro.disconnect();
+  }, [value, items.length]);
   return (
-    <div className={cn("flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none]", className)}>
+    <div ref={wrap} role="tablist"
+      className={cn("relative overflow-x-auto overflow-y-hidden border-b border-line [scrollbar-width:none]", equal ? "grid" : "flex gap-1", className)}
+      style={equal ? { gridTemplateColumns: `repeat(${items.length}, minmax(max-content, 1fr))` } : undefined}>
       {items.map((it) => (
         <button
           key={it.value}
+          data-tab={it.value}
           type="button"
+          role="tab"
+          aria-selected={value === it.value}
           onClick={() => onChange(it.value)}
           className={cn(
-            "-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3.5 py-3 text-[14.5px] font-medium transition-[color,border-color] duration-200",
-            value === it.value ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink",
+            "flex shrink-0 items-center gap-1.5 px-3.5 py-3 text-[14.5px] font-medium transition-colors duration-200",
+            equal && "justify-center",
+            value === it.value ? "text-ink" : "text-muted hover:text-ink",
           )}
         >
           {it.label}
-          {it.count !== undefined && <span className="num rounded-full bg-subtle px-1.5 text-[11px] text-muted">{it.count}</span>}
+          {it.count !== undefined && <span className={cn("num rounded-full px-1.5 text-[11px] transition-colors duration-200", value === it.value ? "bg-ink text-panel" : "bg-subtle text-muted")}>{it.count}</span>}
         </button>
       ))}
+      {bar && (
+        <span aria-hidden className="absolute bottom-0 left-0 h-[2px] rounded-full bg-ink transition-[transform,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{ transform: `translateX(${bar.x}px)`, width: bar.w }} />
+      )}
     </div>
   );
 }
