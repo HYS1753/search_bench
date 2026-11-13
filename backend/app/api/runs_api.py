@@ -17,6 +17,7 @@ from app.api.data_api import resolve_judge_setup
 from app.validation import members_spec, row_inputs, validate_rows
 from app.db import get_db, session_scope
 from app.exports import to_csv, to_json, to_xlsx
+from app.report_html import to_html
 from app.models import Criteria, Dataset, DatasetRow, JudgeModel, Run, RunCase, Suite, utcnow
 from app.runs import ACTIVE, compute_summary, hub, manager, run_progress
 
@@ -584,7 +585,7 @@ async def run_events(run_id: int, request: Request) -> StreamingResponse:
 
 
 @router.get("/runs/{run_id}/export")
-def export_run(run_id: int, format: Literal["csv", "xlsx", "json"] = "xlsx", db: Session = Depends(get_db)) -> Response:
+def export_run(run_id: int, format: Literal["csv", "xlsx", "json", "html"] = "xlsx", db: Session = Depends(get_db)) -> Response:
     run = get_or_404(db, Run, run_id, "실행")
     if run.status in ACTIVE:
         run.summary = compute_summary(db, run)
@@ -595,6 +596,9 @@ def export_run(run_id: int, format: Literal["csv", "xlsx", "json"] = "xlsx", db:
     if format == "csv":
         return Response(to_csv(run, list(cases)), media_type="text/csv; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="{base}.csv"'})
+    if format == "html":
+        return Response(to_html(run, list(cases)), media_type="text/html; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{base}.html"'})
     if format == "json":
         return Response(to_json(run, list(cases)), media_type="application/json",
                         headers={"Content-Disposition": f'attachment; filename="{base}.json"'})

@@ -75,6 +75,13 @@ def test_batch_run_end_to_end_and_exports(app_client, setup_suite):
     detail = app_client.get(f"/api/runs/{run['id']}/cases/{cases['items'][0]['id']}").json()
     assert len(detail["responses"]) == 2 and detail["item_judgments"]
 
+    html = app_client.get(f"/api/runs/{run['id']}/export", params={"format": "html"})
+    assert html.status_code == 200 and html.headers["content-type"].startswith("text/html")
+    assert 'filename="run-' in html.headers["content-disposition"]
+    page = html.text
+    assert page.startswith("<!doctype html>") and "<script" not in page and "http://" not in page.split("<main")[0]
+    assert cmp["verdict"]["title"] in page and "C01" in page and "TOBE vs ASIS" in page
+
     xlsx = app_client.get(f"/api/runs/{run['id']}/export", params={"format": "xlsx"})
     wb = load_workbook(io.BytesIO(xlsx.content))
     assert wb.sheetnames == ["요약", "케이스", "항목 판정", "목록 비교", "설정"]

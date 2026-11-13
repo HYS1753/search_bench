@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronDown, Columns3, Download, Share2, FileJson, FileSpreadsheet, FileText, Pause, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Columns3, FileCode2, Download, Share2, FileJson, FileSpreadsheet, FileText, Pause, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { GradeChip } from "@/components/results/ItemCard";
@@ -104,7 +104,7 @@ export default function RunDetail() {
       setBusy("");
     }
   };
-  const exportAs = async (format: "xlsx" | "csv" | "json") => {
+  const exportAs = async (format: "xlsx" | "csv" | "json" | "html") => {
     setBusy(format);
     try {
       await download(`/runs/${id}/export?format=${format}`, `run-${id}.${format}`);
@@ -161,11 +161,12 @@ export default function RunDetail() {
             )}
             <Menu
               trigger={({ open, toggle }) => (
-                <Button variant="ghost" icon={<Download className="h-4 w-4" />} loading={["xlsx", "csv", "json"].includes(busy)} onClick={toggle} aria-expanded={open}>
+                <Button variant="ghost" icon={<Download className="h-4 w-4" />} loading={["xlsx", "csv", "json", "html"].includes(busy)} onClick={toggle} aria-expanded={open}>
                   내보내기<ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
                 </Button>
               )}
               items={[
+                { label: "보고서 (.html)", icon: <FileCode2 className="h-4 w-4" />, onSelect: () => exportAs("html"), disabled: !!busy },
                 { label: "엑셀 (.xlsx)", icon: <FileSpreadsheet className="h-4 w-4" />, onSelect: () => exportAs("xlsx"), disabled: !!busy },
                 { label: "CSV", icon: <FileText className="h-4 w-4" />, onSelect: () => exportAs("csv"), disabled: !!busy },
                 { label: "JSON", icon: <FileJson className="h-4 w-4" />, onSelect: () => exportAs("json"), disabled: !!busy },
