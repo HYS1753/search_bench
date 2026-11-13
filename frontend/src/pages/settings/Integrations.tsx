@@ -138,9 +138,9 @@ ${curl.split("\n").map((l) => `          ${l}`).join("\n")}`;
 
       {tab === "notify" && (
         <>
-          <div className="mb-4 flex justify-end"><Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing("new")}>알림 추가</Button></div>
+          {!!chans.data?.items.length && <div className="mb-4 flex justify-end"><Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing("new")}>알림 추가</Button></div>}
           {!chans.data?.items.length ? (
-            <Empty icon={<Bell className="h-8 w-8" />} title="알림이 없습니다" action={<Button variant="primary" onClick={() => setEditing("new")}>Slack 알림 추가</Button>}>
+            <Empty icon={<Bell className="h-8 w-8" />} title="알림이 없습니다" action={<Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing("new")}>알림 추가</Button>}>
               평가 완료·실패·‘저하’ 결론·테스트 데이터 생성 완료를 팀 채널로 받을 수 있습니다.
             </Empty>
           ) : (

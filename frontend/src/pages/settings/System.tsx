@@ -49,13 +49,13 @@ export default function System() {
               { k: "데이터 위치", v: <span className="font-mono text-[13px]">{s.data_dir}</span> },
               { k: "DB 크기", v: fmt.bytes(s.db_size_bytes) },
               { k: "저장 키 암호화", v: s.secret_key_source },
-              { k: "로그인", v: s.login_required ? <Badge tone="good">비밀번호 필요</Badge> : <Badge tone="warn">로그인 없음</Badge> },
+              { k: "로그인", v: s.login_required ? <Badge tone="good">비밀번호 필요</Badge> : <span className="text-warn">없음 — 아래 안내 참고</span> },
               { k: "보관 항목", v: Object.entries(s.counts).map(([k, v]) => `${({ judge_models: "판정 모델", targets: "검색 API", suites: "비교 세트", criteria: "평가 기준", datasets: "테스트 데이터", runs: "실행" } as Record<string, string>)[k] ?? k} ${v}`).join(" · ") },
             ]}
           />
         </div>
         <Alert className="mt-6" title="데이터는 어디에 남나요?">
-          모든 설정·테스트 데이터·실행 결과는 <Kbd>{s.data_dir}</Kbd> 의 SQLite(judge.db)에 저장됩니다. Docker 에서는 이 폴더를 볼륨으로 연결해야 컨테이너를 다시 만들어도 데이터가 유지됩니다. secret.key 를 잃어버리면 저장된 키를 복호화할 수 없으니 DB 와 함께 백업하세요. 이 폴더는 git 에 올라가지 않습니다.
+          모든 설정·테스트 데이터·실행 결과는 위 <b>데이터 위치</b>의 SQLite(judge.db)에 저장됩니다. Docker 에서는 이 폴더를 볼륨으로 연결해야 컨테이너를 다시 만들어도 데이터가 유지됩니다. secret.key 를 잃어버리면 저장된 키를 복호화할 수 없으니 DB 와 함께 백업하세요. 이 폴더는 git 에 올라가지 않습니다.
         </Alert>
         {!s.login_required && (
           <Alert tone="warn" className="mt-3" title="팀 서버에 띄운다면">

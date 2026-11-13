@@ -118,7 +118,12 @@ export default function DatasetDetail() {
     <>
       <Link to="/datasets" className="mb-4 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" />테스트 데이터</Link>
       <PageHeader
-        title={ds.data.name}
+        title={editable ? (
+          // 제목이 곧 이름 입력칸: 누르면 바로 고칠 수 있고, 아래에 같은 이름 칸을 따로 두지 않는다
+          <input value={name} onChange={(e) => change(() => setName(e.target.value))} aria-label="이름" placeholder="이름"
+            className="-mx-2 w-full min-w-[12ch] rounded-lg border border-transparent bg-transparent px-2 py-0.5 font-bold text-ink outline-none transition-colors hover:border-line focus:border-accent/50 focus:bg-panel"
+            style={{ width: `${Math.max(12, name.length + 3)}ch` }} />
+        ) : ds.data.name}
         description={<span className="inline-flex flex-wrap items-center gap-2">{fmt.int(filled)}행 · 열 {columns.length}개 · 수정 {fmt.ago(ds.data.updated_at)} <SourceBadge d={ds.data} /></span>}
         actions={
           <>
@@ -165,9 +170,8 @@ export default function DatasetDetail() {
           </>
         ) : null}
       </section>
-      <div className="mb-6 grid gap-3 md:grid-cols-2">
-        <Input value={name} onChange={(e) => change(() => setName(e.target.value))} placeholder="이름" disabled={!editable} />
-        <Input value={description} onChange={(e) => change(() => setDescription(e.target.value))} placeholder="설명" disabled={!editable} />
+      <div className="mb-6">
+        <Input value={description} onChange={(e) => change(() => setDescription(e.target.value))} placeholder="설명 (선택) — 어떤 질의를 모았는지 적어 두면 나중에 찾기 쉽습니다" disabled={!editable} />
       </div>
       {!editable && (
         <Alert tone="warn" className="mb-4" title={`${EDIT_LIMIT}행이 넘는 테스트 데이터는 화면에서 편집할 수 없습니다`}>

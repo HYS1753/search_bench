@@ -82,9 +82,9 @@ export default function Runs() {
                     </td>
                     <td className="px-3 py-3.5">
                       <Link to={`/runs/${r.id}`} className="block">
-                        <div className="font-medium text-ink hover:text-accent">{r.name}</div>
+                        <div className="font-medium text-ink hover:text-accent"><span className="num mr-1.5 text-faint">#{r.id}</span>{r.name}</div>
                         <div className="mt-0.5 text-[12.5px] text-muted">
-                          #{r.id} · {r.members.map((m) => m.label).join(" vs ")} · {fmt.int(r.total)}건 · {r.judge_model?.name}
+                          {fmt.date(r.created_at)} · {r.members.map((m) => m.label).join(" vs ")} · {fmt.int(r.total)}건 · {r.judge_model?.name}
                         </div>
                       </Link>
                     </td>

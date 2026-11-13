@@ -1,11 +1,11 @@
 import { AlertTriangle, ArrowRight, ChevronDown, Info } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { TermTip } from "@/components/ui/overlay";
-import { Section, Stat, StatRow } from "@/components/ui/page";
+import { Link } from "react-router-dom";
+import { Collapsible, Section, Stat, StatRow } from "@/components/ui/page";
 import { Alert, Badge, Card } from "@/components/ui/primitives";
 import { cn, fmt } from "@/lib/format";
-import { TERMS } from "@/lib/glossary";
 import type { CaseRow, Comparison, RunSummary, TargetSummary } from "@/lib/types";
 import { CategoryBars, RunCharts } from "./RunCharts";
 import { VERDICT_TONE, VerdictIcon, WinBar } from "./Verdict";
@@ -137,18 +137,6 @@ function DiffChart({ cases, onOpen }: { cases: CaseRow[]; onOpen: (id: number) =
   );
 }
 
-function Learn({ term, children }: { term: string; children?: ReactNode }) {
-  const t = TERMS[term];
-  return (
-    <div className="border-t border-line pb-2 pt-5">
-      <div className="text-[14.5px] font-semibold">{t.name}</div>
-      <div className="mt-1 text-[12.5px] leading-relaxed text-muted">{t.short}</div>
-      <div className="mt-2 text-[12.5px] leading-relaxed"><span className="font-medium text-ink/80">알 수 있는 것 · </span><span className="text-muted">{t.learn}</span></div>
-      {children}
-    </div>
-  );
-}
-
 /** 구간 값: 큰 숫자 칸 안에서 줄바꿈 없이 작게 */
 const Range = ({ a, b }: { a: string; b: string }) => (
   <span className="inline-flex items-baseline gap-1 whitespace-nowrap text-[22px]">{a}<span className="text-[15px] font-medium text-faint">~</span>{b}</span>
@@ -255,22 +243,23 @@ export function RunSummaryView({
         )}
       </section>
       <RunCharts summary={summary} k={k} cmp={cmp} />
-      <Section title="대상별 지표 (숫자)" description="후보 행에서 기준보다 좋은 값은 초록, 나쁜 값은 빨강으로 표시합니다.">
+      <Collapsible className="mb-14" title="대상별 지표 숫자로 보기" summary="위 차트의 값을 표로 봅니다. 후보가 기준보다 좋으면 초록, 나쁘면 빨강.">
         <TargetTable targets={targets} k={k} candidate={candidate} />
         {(summary.no_relevant_cases ?? 0) > 0 && (
           <div className="mt-3 flex items-center gap-1.5 text-[13px] text-muted">
             <Info className="h-3.5 w-3.5" />어느 대상도 관련 항목을 찾지 못한 케이스 {summary.no_relevant_cases}건은 nDCG 평균에서 제외했습니다. <TermTip term="no_relevant" />
           </div>
         )}
-      </Section>
-      <Section title="케이스별 변화" description={`막대 하나가 케이스 하나입니다. 위로 솟으면 ${candidate}가, 아래로 내려가면 기준이 더 좋은 케이스입니다. 막대를 누르면 상세를 엽니다.`}
+      </Collapsible>
+      <Section title="케이스별 변화" description={`막대 하나가 케이스 하나이고, 높이는 nDCG 차이입니다. 위로 솟으면 ${candidate}가, 아래로 내려가면 기준이 더 좋습니다. 위 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.`}
         actions={<div className="flex gap-3 text-[12.5px] text-muted"><span className="text-good">개선 {cmp.improved_cases}</span><span>같음 {cmp.same_cases}</span><span className="text-bad">저하 {cmp.regressed_cases}</span></div>}>
         <Card className="py-5"><DiffChart cases={cases} onOpen={onOpenCase} /></Card>
       </Section>
       {(summary.by_category?.length ?? 0) > 1 && (
         <Section title="분류별" description="어느 영역에서 좋아지고 나빠졌는지 봅니다.">
           <div className="mb-6 border-y border-line py-6"><CategoryBars summary={summary} targets={targets} /></div>
-          <Card className="overflow-x-auto">
+          <Collapsible title="분류별 숫자로 보기">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead className="border-b border-line text-[12px] text-muted">
                 <tr>
@@ -296,19 +285,13 @@ export function RunSummaryView({
                 })}
               </tbody>
             </table>
-          </Card>
+          </div>
+          </Collapsible>
         </Section>
       )}
-      <Section title="이 결과로 알 수 있는 것" description="지표마다 답하는 질문이 다릅니다. 여러 지표가 같은 방향을 가리킬수록 결론을 믿을 수 있습니다.">
-        <div className="grid gap-x-10 md:grid-cols-2 lg:grid-cols-3">
-          <Learn term="ndcg" />
-          <Learn term="pairwise" />
-          <Learn term="hit1" />
-          <Learn term="mrr" />
-          <Learn term="inconsistent" />
-          <Learn term="error_rate" />
-        </div>
-      </Section>
+      <p className="text-[13px] text-muted">
+        지표마다 답하는 질문이 다릅니다. 이름 옆 <span className="font-medium">?</span> 를 누르거나 <Link to="/guide" className="font-medium text-accent hover:underline">도움말 › 평가 방법</Link>에서 읽는 법을 볼 수 있습니다.
+      </p>
     </>
   );
 }

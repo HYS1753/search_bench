@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NextStep } from "@/components/onboarding/NextStep";
-import { ArrowRight, FileSpreadsheet, FileUp, PenLine, Play, Sparkles, Table2, Trash2, Wrench } from "lucide-react";
+import { ArrowRight, ChevronDown, FileSpreadsheet, FileUp, PenLine, Play, Plus, Sparkles, Table2, Trash2, Wrench } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BoundBadge, CompatBadge, SourceBadge } from "@/components/datasets/Compat";
-import { Dialog, useConfirm } from "@/components/ui/overlay";
+import { Dialog, Menu, useConfirm } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page";
 import { Button, Field, Input, PageSkeleton, Select, Spinner } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
@@ -122,11 +122,21 @@ export default function Datasets() {
         eyebrow="평가 구성"
         title="테스트 데이터"
         description="평가에 넣을 질의 모음입니다. 비교 세트를 고르면 각 데이터를 그 세트로 바로 쓸 수 있는지 함께 보여 줍니다."
-        actions={<Button variant="primary" icon={<Sparkles className="h-4 w-4" />} onClick={() => start("llm")}>LLM 으로 만들기</Button>}
+        actions={items.length > 0 && (
+          <Menu
+            trigger={({ open, toggle }) => (
+              <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={toggle} aria-expanded={open}>
+                새 데이터<ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
+              </Button>
+            )}
+            items={CREATE.map((c) => ({ label: c.title, icon: c.icon, onSelect: () => start(c.key) }))}
+          />
+        )}
       />
       <NextStep current="dataset" />
 
-      {/* 만들기 */}
+      {/* 만들기 — 데이터가 없을 때만 크게 보여 주고, 있으면 머리글의 '새 데이터' 메뉴로 충분하다 */}
+      {!items.length && (
       <div className="stagger mb-12 grid gap-3 md:grid-cols-3">
         {CREATE.map((c) => (
           <button key={c.key} onClick={() => start(c.key)}
@@ -140,6 +150,7 @@ export default function Datasets() {
           </button>
         ))}
       </div>
+      )}
 
       {/* 비교 세트 기준 */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-4">

@@ -146,7 +146,7 @@ export default function Overview() {
               <Link key={r.id} to={`/runs/${r.id}`}>
                 <Card className="border-b-0 py-5">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="truncate font-medium">{r.name}</div>
+                    <div className="truncate font-medium"><span className="num mr-1.5 text-faint">#{r.id}</span>{r.name}</div>
                     <StatusBadge status={r.status} />
                   </div>
                   <Progress className="mt-3" value={r.completed} max={r.total} />
@@ -191,7 +191,7 @@ export default function Overview() {
                   <div className="truncate font-medium">{r.name}</div>
                   <div className="mt-0.5 text-[12.5px] text-muted">{r.members.map((m) => m.label).join(" vs ")} · {fmt.int(r.total)}건 · {fmt.ago(r.created_at)}</div>
                 </div>
-                <StatusBadge status={r.status} />
+                {r.status !== "done" && <StatusBadge status={r.status} />}
                 <VerdictBadge verdict={r.headline?.verdict} />
                 <span className={cn("num w-16 text-right text-sm font-semibold", (r.headline?.ndcg_diff ?? 0) > 0 ? "text-good" : (r.headline?.ndcg_diff ?? 0) < 0 ? "text-bad" : "text-muted")}>{fmt.signed(r.headline?.ndcg_diff)}</span>
                 <div className="w-28">{r.headline?.wins !== null && r.headline?.wins !== undefined && <WinBar wins={r.headline.wins} ties={r.headline.ties ?? 0} losses={r.headline.losses ?? 0} />}</div>

@@ -1,5 +1,5 @@
-import { ArrowUpRight } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/format";
 import { TermTip } from "./overlay";
@@ -72,6 +72,33 @@ export function StatRow({ children, className, min = 250 }: { children: ReactNod
     >
       {children}
     </div>
+  );
+}
+
+/** 접고 펼치는 영역. 높이가 부드럽게 늘고 줄어든다(grid-rows 0fr↔1fr). 보조 정보(숫자 표·통계)를 기본으로 접어 둘 때 쓴다. */
+export function Collapsible({ title, summary, children, defaultOpen = false, className, open: controlled, onOpenChange }: {
+  title: ReactNode; summary?: ReactNode; children: ReactNode; defaultOpen?: boolean; className?: string;
+  open?: boolean; onOpenChange?: (v: boolean) => void;
+}) {
+  const [inner, setInner] = useState(defaultOpen);
+  const open = controlled ?? inner;
+  const set = (v: boolean) => (onOpenChange ? onOpenChange(v) : setInner(v));
+  return (
+    <section className={cn("border-y border-line", className)}>
+      <button type="button" onClick={() => set(!open)} aria-expanded={open}
+        className="group flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-4 text-left">
+        <span className="text-[15px] font-semibold tracking-tight text-ink">{title}</span>
+        {summary && <span className="text-[13px] text-muted">{summary}</span>}
+        <span className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-muted transition-colors group-hover:text-accent">
+          {open ? "접기" : "펼치기"}<ChevronDown className={cn("h-4 w-4 transition-transform duration-300 ease-out", open && "rotate-180")} />
+        </span>
+      </button>
+      <div className={cn("grid transition-[grid-template-rows,opacity] duration-300 ease-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="pb-6">{children}</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
