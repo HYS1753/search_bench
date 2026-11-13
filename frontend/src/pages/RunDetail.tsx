@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Columns3, Download, Share2, FileJson, FileSpreadsheet, FileText, Pause, Play, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Columns3, Download, Share2, FileJson, FileSpreadsheet, FileText, Pause, Play, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { GradeChip } from "@/components/results/ItemCard";
@@ -9,7 +9,7 @@ import { HumanReview } from "@/components/results/HumanReview";
 import { ShareDialog } from "@/components/results/ShareDialog";
 import { RunSummaryView } from "@/components/results/RunSummaryView";
 import { StatusBadge } from "@/components/results/Verdict";
-import { useConfirm } from "@/components/ui/overlay";
+import { Menu, useConfirm } from "@/components/ui/overlay";
 import { KeyValue, PageHeader, Section, Segmented, Tabs } from "@/components/ui/page";
 import { Alert, Badge, Button, Card, Code, Input, PageSkeleton, Progress, Select, Spinner } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
@@ -159,12 +159,18 @@ export default function RunDetail() {
                 같은 설정으로 다시
               </Button>
             )}
-            <div className="flex overflow-hidden rounded-xl border border-line bg-panel shadow-soft">
-              <span className="flex items-center gap-1.5 border-r border-line px-3 text-[13px] text-muted"><Download className="h-4 w-4" />내보내기</span>
-              <button className="flex items-center gap-1 px-3 py-2 text-[13px] hover:bg-subtle" onClick={() => exportAs("xlsx")} disabled={!!busy}><FileSpreadsheet className="h-3.5 w-3.5" />엑셀</button>
-              <button className="flex items-center gap-1 border-l border-line px-3 py-2 text-[13px] hover:bg-subtle" onClick={() => exportAs("csv")} disabled={!!busy}><FileText className="h-3.5 w-3.5" />CSV</button>
-              <button className="flex items-center gap-1 border-l border-line px-3 py-2 text-[13px] hover:bg-subtle" onClick={() => exportAs("json")} disabled={!!busy}><FileJson className="h-3.5 w-3.5" />JSON</button>
-            </div>
+            <Menu
+              trigger={({ open, toggle }) => (
+                <Button variant="ghost" icon={<Download className="h-4 w-4" />} loading={["xlsx", "csv", "json"].includes(busy)} onClick={toggle} aria-expanded={open}>
+                  내보내기<ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")} />
+                </Button>
+              )}
+              items={[
+                { label: "엑셀 (.xlsx)", icon: <FileSpreadsheet className="h-4 w-4" />, onSelect: () => exportAs("xlsx"), disabled: !!busy },
+                { label: "CSV", icon: <FileText className="h-4 w-4" />, onSelect: () => exportAs("csv"), disabled: !!busy },
+                { label: "JSON", icon: <FileJson className="h-4 w-4" />, onSelect: () => exportAs("json"), disabled: !!busy },
+              ]}
+            />
             {!active && (
               <Button size="icon" variant="ghost" aria-label="삭제"
                 onClick={async () => {
@@ -203,9 +209,9 @@ export default function RunDetail() {
         <Tabs value={tab} onChange={setTab} items={[
           { value: "summary", label: "요약" }, { value: "cases", label: "케이스", count: r.total },
           { value: "review", label: "사람 검수", count: r.summary?.review?.reviewed_cases ?? 0 }, { value: "settings", label: "실행 설정" },
-        ]} className="flex-1" />
+        ]} className="min-w-0 basis-full sm:basis-auto sm:flex-1" />
         {candidates.length > 1 && (
-          <Select className="h-9 w-auto" value={cand} onChange={(e) => setCandidate(e.target.value)}>
+          <Select className="h-9 w-full sm:w-auto" value={cand} onChange={(e) => setCandidate(e.target.value)}>
             {candidates.map((c) => <option key={c} value={c}>{c} vs 기준</option>)}
           </Select>
         )}
@@ -225,7 +231,7 @@ export default function RunDetail() {
                 { value: "combined", label: `결합${hasHuman ? "" : " (검수 없음)"}` },
                 { value: "human", label: `사람 판정${rv?.complete_cases ? ` (${rv.complete_cases}건)` : ""}` },
               ]} />
-              <span className="min-w-0 flex-1 break-keep text-[12.5px] text-muted">
+              <span className="min-w-0 grow basis-64 break-keep text-[12.5px] text-muted">
                 {basis === "llm" && "판정 모델만으로 낸 결과입니다. 사람 검수 없이도 볼 수 있습니다."}
                 {basis === "combined" && "항목마다 사람 등급이 있으면 사람 것을, 없으면 LLM 것을 씁니다(목록 선호도 같은 방식). 검수할수록 사람 기준에 가까워집니다."}
                 {basis === "human" && "사람이 모든 항목을 채점한 케이스만으로 계산합니다. 건수가 적으면 결론이 보류됩니다."}
@@ -280,14 +286,15 @@ export default function RunDetail() {
             </div>
           </div>
           <Card className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-sm">
-              <thead className="border-b border-line text-[12px] text-muted">
+            {/* 결과(차이·목록 비교)를 앞에 두어, 좁은 화면에서 넘쳐도 핵심 열은 먼저 보이게 한다 */}
+            <table className="w-full text-sm" style={{ minWidth: 560 + r.members.length * 150 }}>
+              <thead className="border-b border-line text-[12px] text-muted [&_th]:whitespace-nowrap">
                 <tr>
                   <th className="px-5 py-3 text-left font-medium">케이스</th>
                   <th className="px-3 py-3 text-left font-medium">질의</th>
-                  {r.members.map((m) => <th key={m.label} className="px-3 py-3 text-left font-medium">{m.label} 1위</th>)}
                   <th className="px-3 py-3 text-right font-medium">nDCG 차이</th>
-                  <th className="px-5 py-3 text-left font-medium">목록 비교</th>
+                  <th className="px-3 py-3 text-left font-medium">목록 비교</th>
+                  {r.members.map((m) => <th key={m.label} className="px-3 py-3 text-left font-medium last:pr-5">{m.label} 1위</th>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -299,23 +306,13 @@ export default function RunDetail() {
                         <div className="font-medium">{c.case_key}</div>
                         {c.category && <div className="mt-0.5 text-[12px] text-muted">{c.category}</div>}
                       </td>
-                      <td className="max-w-[280px] px-3">
+                      <td className="max-w-[260px] px-3">
                         <div className="truncate">{fmt.inputs(c.inputs[firstText])}</div>
                         {c.status === "error" && <div className="truncate text-[12px] text-bad">{c.error}</div>}
                         {c.status === "pending" && <div className="text-[12px] text-faint">대기 중</div>}
                       </td>
-                      {r.members.map((m) => {
-                        const t = c.tops[m.label];
-                        return (
-                          <td key={m.label} className="max-w-[220px] px-3">
-                            {!t ? <span className="text-faint">–</span> : t.ok === false ? <span className="text-[12.5px] text-bad">호출 실패</span> : t.title ? (
-                              <div className="flex items-center gap-2"><span className="truncate">{t.title}</span><GradeChip grade={t.grade} /></div>
-                            ) : <span className="text-[12.5px] text-muted">0건</span>}
-                          </td>
-                        );
-                      })}
                       <td className={cn("num px-3 text-right font-semibold", (c.ndcg_diff ?? 0) > 1e-9 ? "text-good" : (c.ndcg_diff ?? 0) < -1e-9 ? "text-bad" : "text-muted")}>{fmt.signed(c.ndcg_diff, 2)}</td>
-                      <td className="px-5">
+                      <td className="px-3">
                         {pw ? (
                           <div className="flex items-center gap-1.5">
                             <Badge tone={pw.winner === "candidate" ? "good" : pw.winner === "baseline" ? "bad" : "neutral"}>
@@ -325,6 +322,16 @@ export default function RunDetail() {
                           </div>
                         ) : <span className="text-faint">–</span>}
                       </td>
+                      {r.members.map((m) => {
+                        const t = c.tops[m.label];
+                        return (
+                          <td key={m.label} className="max-w-[200px] px-3 last:pr-5">
+                            {!t ? <span className="text-faint">–</span> : t.ok === false ? <span className="text-[12.5px] text-bad">호출 실패</span> : t.title ? (
+                              <div className="flex items-center gap-2"><span className="truncate">{t.title}</span><GradeChip grade={t.grade} compact /></div>
+                            ) : <span className="text-[12.5px] text-muted">0건</span>}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}

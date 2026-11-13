@@ -111,6 +111,7 @@ mark { background: rgb(var(--warn-soft)); color: inherit; border-radius: 3px; pa
 .tooltip-anim[data-state="delayed-open"], .tooltip-anim[data-state="instant-open"] { animation: pop-in 0.14s var(--ease-out); }
 .toast-in { animation: toast-in 0.26s var(--ease-out) both; }
 .toast-out { animation: toast-out 0.18s var(--ease-in-out) both; }
+.menu-anim { animation: pop-in 0.14s var(--ease-out) both; }
 .mobile-nav-in { animation: slide-in-left 0.26s var(--ease-out); }
 
 /* 스켈레톤 */

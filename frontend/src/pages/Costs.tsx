@@ -116,7 +116,7 @@ export default function Costs() {
                 <BarChart data={chartDaily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid vertical={false} stroke="rgb(var(--line))" strokeDasharray="3 3" />
                   <XAxis dataKey="date" tickFormatter={tick} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} minTickGap={18} />
-                  <YAxis tickFormatter={(v) => `$${Number(v) < 1 ? Number(v).toFixed(2) : Number(v).toFixed(0)}`} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={48} />
+                  <YAxis tickFormatter={(v) => `$${Number(v) >= 10 ? Number(v).toFixed(0) : Number(v).toFixed(2)}`} tick={{ fontSize: 11, fill: "rgb(var(--faint))" }} axisLine={false} tickLine={false} width={48} />
                   <RTooltip
                     cursor={{ fill: "rgb(var(--subtle))" }}
                     content={({ active, payload, label }) =>

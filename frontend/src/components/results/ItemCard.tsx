@@ -5,13 +5,16 @@ import { cn } from "@/lib/format";
 import { GRADE_META } from "@/lib/glossary";
 import type { Item, Judgment } from "@/lib/types";
 
-export function GradeChip({ grade, reason }: { grade: number | null | undefined; reason?: string }) {
+export function GradeChip({ grade, reason, compact }: { grade: number | null | undefined; reason?: string; compact?: boolean }) {
   if (grade === null || grade === undefined) return null;
   const meta = GRADE_META[grade] ?? GRADE_META[0];
   const chip = (
-    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold", meta.tone)}>
+    <span
+      title={compact ? `${grade} ${meta.label}` : undefined}
+      className={cn("inline-flex shrink-0 items-center gap-1 rounded-full py-0.5 text-[11.5px] font-semibold", compact ? "min-w-[22px] justify-center px-1.5" : "px-2", meta.tone)}
+    >
       <span className="num">{grade}</span>
-      {meta.label}
+      {!compact && meta.label}
     </span>
   );
   return reason ? <Tooltip content={reason}>{chip}</Tooltip> : chip;

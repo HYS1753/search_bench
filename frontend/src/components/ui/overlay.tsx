@@ -123,6 +123,44 @@ export function Tooltip({ content, children, side = "top" }: { content: ReactNod
   );
 }
 
+/** 버튼을 누르면 아래로 펼쳐지는 작은 메뉴(내보내기 형식 고르기 등). 바깥을 누르거나 Esc 로 닫힌다. */
+export function Menu({ trigger, items, align = "end" }: {
+  trigger: (props: { open: boolean; toggle: () => void }) => ReactNode;
+  items: { label: ReactNode; icon?: ReactNode; onSelect: () => void; disabled?: boolean }[];
+  align?: "start" | "end";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      {trigger({ open, toggle: () => setOpen((o) => !o) })}
+      {open && (
+        <div role="menu" className={cn("menu-anim absolute top-full z-30 mt-1.5 min-w-[160px] overflow-hidden rounded-xl border border-line bg-panel p-1 shadow-lg", align === "end" ? "right-0 origin-top-right" : "left-0 origin-top-left")}>
+          {items.map((it, i) => (
+            <button key={i} role="menuitem" type="button" disabled={it.disabled}
+              onClick={() => { setOpen(false); it.onSelect(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13.5px] text-ink hover:bg-subtle disabled:opacity-50">
+              {it.icon && <span className="text-muted">{it.icon}</span>}
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 지표 이름 옆 (?) — 정의·읽는 법·알 수 있는 것을 보여 준다. */
 export function TermTip({ term, className }: { term: keyof typeof TERMS | string; className?: string }) {
   const t = TERMS[term];
