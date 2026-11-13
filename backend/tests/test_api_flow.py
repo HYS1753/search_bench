@@ -79,7 +79,12 @@ def test_batch_run_end_to_end_and_exports(app_client, setup_suite):
     assert html.status_code == 200 and html.headers["content-type"].startswith("text/html")
     assert 'filename="run-' in html.headers["content-disposition"]
     page = html.text
-    assert page.startswith("<!doctype html>") and "<script" not in page and "http://" not in page.split("<main")[0]
+    assert page.startswith("<!doctype html>") and "http://" not in page.split("<main")[0]
+    # 외부 파일 없이 자체 툴팁 스크립트만, 차트 요소마다 값 툴팁, (i) 설명은 결과 화면과 같은 문구
+    assert " src=" not in page and page.count("<script>") == 1 and page.count("data-tip=") > 100
+    from app.report_html import GLOSSARY
+    assert GLOSSARY["hints"]["agreement"][:40] in page and GLOSSARY["terms"]["ndcg"]["short"][:20] in page
+    assert 'id="case-C01"' in page and 'href="#case-C01"' in page
     assert cmp["verdict"]["title"] in page and "C01" in page and "TOBE vs ASIS" in page
     assert "Overlap@3" in page and "Pairwise ↔ ΔnDCG" in page and "Graded relevance by rank" in page
 

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { hint } from "@/lib/glossary";
 import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { ANIM, AXIS_TICK, BAD, CURSOR_FILL, CURSOR_LINE, ChartEmpty, ChartTooltip, GOOD, GRID, LEGEND_STYLE, NEUTRAL } from "@/components/ui/chart";
@@ -397,30 +398,30 @@ export function MetricDetails({ runId, summary, cases, candidate, baseline, cmp,
   ];
 
   return (
-    <Section title={<SectionTitle hint="요약 숫자 뒤의 분포를 봅니다. 평균이 같아도 일부 케이스가 크게 나빠졌는지, 어느 순위·등급에서 차이가 나는지 확인할 수 있습니다.">지표 상세</SectionTitle>}>
+    <Section title={<SectionTitle hint={hint("details")}>지표 상세</SectionTitle>}>
       <div className="border-y border-line py-6">
         <div className="mb-5"><Panel name="ΔMetrics" ko={`지표별 차이 · ${candidate} − ${baseline}`} term="ndcg_diff" className="py-0"
-          hint="점은 케이스 평균 차이, 선은 95% 신뢰구간입니다. 선 전체가 0 오른쪽이면 확실한 개선(초록), 왼쪽이면 확실한 저하(빨강), 0 을 걸치면 우연일 수 있는 차이(회색)입니다. nDCG·Hit@1 은 서버 계산값, MRR·P@k 는 부트스트랩(1,000회).">
+          hint={hint("forest")}>
           <Forest rows={forest} />
         </Panel></div>
       </div>
       <Pair>
         <Panel name={`nDCG@${k} scatter`} ko="케이스별 기준 vs 후보" term="ndcg"
-          hint={`점 하나가 케이스 하나입니다. 점선(대각선) 위면 ${candidate} 가, 아래면 기준이 더 좋습니다. 점을 누르면 케이스 상세가 열립니다.`}>
+          hint={hint("scatter", { candidate })}>
           <NdcgScatter pts={pts} baseline={baseline} candidate={candidate} onOpen={onOpenCase} />
         </Panel>
         <Panel name={`nDCG@${k} distribution`} ko="nDCG 분포" term="ndcg"
-          hint="케이스의 nDCG 를 0.1 단위 구간으로 나눈 비율입니다. 오른쪽(1 에 가까운 구간)에 많을수록 좋고, 왼쪽 꼬리가 길면 크게 실패하는 질의가 있다는 뜻입니다.">
+          hint={hint("ndcg_hist")}>
           {pts.length ? <GroupedBars data={hist} series={series} /> : <ChartEmpty>비교할 케이스가 없습니다.</ChartEmpty>}
         </Panel>
       </Pair>
       <Pair>
         <Panel name="MRR · First relevant rank" ko="첫 관련 결과의 순위 분포" term="mrr"
-          hint={`처음으로 ‘관련’ 이상이 나온 순위의 비율입니다. 1위 비율이 곧 Hit@1 이고, MRR 은 1/순위의 평균입니다. ‘없음’은 상위 ${k}개 안에 관련 결과가 없던 케이스입니다.`}>
+          hint={hint("first_rank", { k })}>
           {paired.length ? <GroupedBars data={ranks} series={series} /> : <ChartEmpty>비교할 케이스가 없습니다.</ChartEmpty>}
         </Panel>
         <Panel name="Top-1 grade transition" ko="1위 등급 변화" term="grade"
-          hint={`기준 1위 결과의 등급(행)이 ${candidate} 에서 어떻게 바뀌었는지(열) 케이스 수로 봅니다. 대각선 오른쪽 위(초록)는 좋아진 케이스, 왼쪽 아래(빨강)는 나빠진 케이스입니다.`}>
+          hint={hint("transition", { candidate })}>
           <Transition cases={paired} baseline={baseline} candidate={candidate} />
         </Panel>
       </Pair>
@@ -428,21 +429,21 @@ export function MetricDetails({ runId, summary, cases, candidate, baseline, cmp,
         <>
           <Pair>
             <Panel name={`Overlap@${k}`} ko="결과 겹침"
-              hint={`기준과 ${candidate} 의 상위 ${k}개가 얼마나 같은지 봅니다(Jaccard = 공통 결과 수 ÷ 합친 결과 수). 1에 가까우면 변경이 결과를 거의 바꾸지 않았다는 뜻이라, 품질 차이가 작게 나오는 이유가 됩니다. 0에 가까우면 완전히 다른 결과를 보여 줍니다.`}>
+              hint={hint("overlap", { candidate, k })}>
               <OverlapPanel d={d} />
             </Panel>
             <Panel name="Graded relevance by rank" ko="순위별 평균 등급" term="grade"
-              hint={`각 순위에 놓인 결과의 평균 관련도 등급(0~3)입니다. 1위부터 빨리 떨어지면 상위 몇 개만 쓸 만하다는 뜻이고, 점선(관련 기준 ${d.relevant_threshold}) 위에 오래 머물수록 좋습니다.`}>
+              hint={hint("rank_grade", { threshold: d.relevant_threshold })}>
               <RankGradePanel d={d} colors={{ base: targetColor(targets, baseline), cand: targetColor(targets, candidate) }} />
             </Panel>
           </Pair>
           <Pair>
             <Panel name="Relevant coverage" ko="관련 결과 발견"
-              hint={`상위 ${k}개 안의 ‘관련’(${d.relevant_threshold} 이상) 결과를 기준만 찾았는지, ${candidate} 만 찾았는지, 둘 다 찾았는지 셉니다. 초록(후보만)이 크면 새로 찾아낸 정답이 많고, 빨강(기준만)이 크면 놓친 정답이 많습니다.`}>
+              hint={hint("coverage", { candidate, k, threshold: d.relevant_threshold })}>
               <RelevantFoundPanel d={d} />
             </Panel>
             <Panel name="Pairwise ↔ ΔnDCG" ko="목록 비교와 nDCG 일치도" term="pairwise"
-              hint="LLM 이 목록을 통째로 본 판정(행)과 항목 등급으로 계산한 nDCG 차이의 방향(열)이 같은지 봅니다. 같은 방향(초록)이 많을수록 두 지표가 같은 결론을 가리켜 믿을 만합니다. 반대 방향(빨강)이 많으면 판정 기준이나 평가 범위를 확인하세요. 판정 확신도는 두 번의 목록 비교에서 모델이 답한 확신 수준입니다.">
+              hint={hint("agreement")}>
               <AgreementPanel d={d} />
             </Panel>
           </Pair>

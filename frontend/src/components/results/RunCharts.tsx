@@ -1,4 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
+import { hint } from "@/lib/glossary";
 import type { ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
@@ -208,34 +209,34 @@ export function RunCharts({ summary, k, cmp }: { summary: RunSummary; k: number;
   const allHealthy = targets.every((t) => !(t.error_rate ?? 0) && !(t.empty_rate ?? 0));
   return (
     <>
-      <Section title={<SectionTitle hint="막대가 길수록 좋은 지표입니다. 회색이 기준, 색이 있는 막대가 후보입니다.">한눈에 보기</SectionTitle>}>
+      <Section title={<SectionTitle hint={hint("overview")}>한눈에 보기</SectionTitle>}>
         <Pair>
-          <Panel name={`nDCG@${k} · Hit@1 · MRR · P@${k}`} ko="순위 지표 비교" term="ndcg" hint="모두 0~1 사이 값입니다. 같은 지표끼리 막대 길이를 비교하세요.">
+          <Panel name={`nDCG@${k} · Hit@1 · MRR · P@${k}`} ko="순위 지표 비교" term="ndcg" hint={hint("metric_bars")}>
             <MetricBars targets={targets} k={k} />
           </Panel>
-          <Panel name="Win rate" ko="목록 비교 승률" term="pairwise" hint="두 결과 목록을 통째로 보고 어느 쪽이 더 유용한지 판정한 결과입니다. 승률은 무승부를 뺀 승/(승+패).">
+          <Panel name="Win rate" ko="목록 비교 승률" term="pairwise" hint={hint("win_rate")}>
             <OutcomeSplit cmp={cmp} />
           </Panel>
         </Pair>
       </Section>
       {dist && (
-        <Section title={<SectionTitle hint="판정 모델이 매긴 관련도 등급(0~3)의 비율입니다. 진한 색(매우 관련·관련)이 넓을수록 좋습니다.">결과의 질</SectionTitle>}>
+        <Section title={<SectionTitle hint={hint("quality")}>결과의 질</SectionTitle>}>
           <Pair>
-            <Panel name="Hit@1" ko="1위 결과의 등급 분포" term="hit1" hint="사용자가 가장 먼저 보는 1위 결과가 얼마나 정확한지 봅니다. Hit@1 은 1위가 ‘관련’ 이상인 비율입니다.">
+            <Panel name="Hit@1" ko="1위 결과의 등급 분포" term="hit1" hint={hint("top1_grades")}>
               <GradeBars dist={dist} targets={targets} which="top1" />
             </Panel>
-            <Panel name={`P@${k}`} ko={`상위 ${k}개 등급 분포`} term="precision" hint={`보여 주는 상위 ${k}개 전체에 관련 없는 결과(잡음)가 얼마나 섞였는지 봅니다. P@${k} 는 ‘관련’ 이상 항목의 비율입니다.`}>
+            <Panel name={`P@${k}`} ko={`상위 ${k}개 등급 분포`} term="precision" hint={hint("topk_grades", { k })}>
               <GradeBars dist={dist} targets={targets} which="items" />
             </Panel>
           </Pair>
         </Section>
       )}
-      <Section title={<SectionTitle hint="품질 차이가 장애나 속도 문제와 얽혀 있지 않은지 확인합니다.">속도와 안정성</SectionTitle>}>
+      <Section title={<SectionTitle hint={hint("speed")}>속도와 안정성</SectionTitle>}>
         <Pair>
-          <Panel name="Latency p50 · p95" ko="응답 시간" term="latency" hint="성공한 호출 기준입니다. 막대가 짧을수록 빠릅니다.">
+          <Panel name="Latency p50 · p95" ko="응답 시간" term="latency" hint={hint("latency")}>
             <LatencyBars targets={targets} />
           </Panel>
-          <Panel name="Error rate · Empty rate" ko="호출 실패율 · 0건 비율" term="error_rate" hint="0%가 정상입니다.">
+          <Panel name="Error rate · Empty rate" ko="호출 실패율 · 0건 비율" term="error_rate" hint={hint("errors")}>
             {allHealthy ? (
               <div className="flex items-center gap-2.5 border-y border-line py-4 text-[14px]">
                 <CheckCircle2 className="h-5 w-5 text-good" />

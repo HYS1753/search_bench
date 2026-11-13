@@ -235,3 +235,22 @@ def test_version_diff_ignores_number_vs_text():
     assert d["changed"] == 0
     d2 = diff(["q", "k"], [{"q": "a", "k": 5}], ["q", "k"], [{"q": "b", "k": "5"}])
     assert d2["changed"] == 1 and d2["changed_rows"][0]["columns"] == ["q"]
+
+
+def test_glossary_json_matches_frontend():
+    """HTML 보고서의 설명(backend/app/glossary.json)이 결과 화면(glossary.ts)과 같아야 한다."""
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    ts = root / "frontend/src/lib/glossary.ts"
+    if not ts.exists():  # 백엔드만 있는 환경(이미지)에서는 건너뜀
+        return
+    spec = importlib.util.spec_from_file_location("sync_glossary", root / "scripts/sync_glossary.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    expected = mod.parse(ts.read_text(encoding="utf-8"))
+    actual = json.loads((root / "backend/app/glossary.json").read_text(encoding="utf-8"))
+    assert actual == expected, "glossary.ts 가 바뀌었습니다 — python3 scripts/sync_glossary.py 를 실행하세요"
+    assert len(expected["terms"]) >= 15 and "overlap" in expected["hints"]

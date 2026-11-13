@@ -1,4 +1,5 @@
 import { AlertTriangle, ArrowRight, Info } from "lucide-react";
+import { hint } from "@/lib/glossary";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { ANIM, AXIS_TICK, BAD, CURSOR_FILL, ChartEmpty, ChartTooltip, GOOD, GRID, NEUTRAL } from "@/components/ui/chart";
@@ -207,7 +208,7 @@ export function RunSummaryView({
               {cmp.wins}승 {cmp.ties}무 {cmp.losses}패 · 부호 검정 p={cmp.sign_test_p === null ? "–" : cmp.sign_test_p < 0.001 ? "<0.001" : cmp.sign_test_p.toFixed(3)}
             </>} />
           <Stat label={<MetricTitle name="Hit@1" ko="1위 정답률" />} term="hit1" value={fmt.pct(cand?.hit1)} sub={<>기준 {fmt.pct(base?.hit1)} · 차이 {fmt.signedPct(cmp.hit1_diff)}<br />1위 평균 등급 {fmt.num(baseTop1, 1)} → {fmt.num(candTop1, 1)} / 3</>} />
-          <Stat label={<MetricTitle name="Consistency" ko="판정 일관성" />} term="inconsistent" hint="A·B 순서를 바꿔 두 번 물었을 때 같은 판정이 나온 비율입니다."
+          <Stat label={<MetricTitle name="Consistency" ko="판정 일관성" />} term="inconsistent" hint={hint("consistency")}
             value={cmp.pairwise_cases ? fmt.pct(1 - cmp.inconsistent / cmp.pairwise_cases) : "–"}
             sub={<>순서 불일치 {cmp.inconsistent}건 / {cmp.pairwise_cases}건</>} />
         </StatRow>
@@ -247,13 +248,13 @@ export function RunSummaryView({
         )}
       </Collapsible>
       <Section title={<MetricTitle name={`ΔnDCG@${k} by case`} ko="케이스별 nDCG 차이" term="ndcg_diff"
-        hint={`막대 하나가 케이스 하나이고, 높이는 ${candidate} − 기준의 nDCG 차이입니다. 위로 솟으면 ${candidate}가, 아래로 내려가면 기준이 더 좋습니다. 막대를 누르면 상세를 엽니다. 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.`} />}
+        hint={hint("case_diff", { candidate })} />}
         actions={<div className="flex gap-3 text-[12.5px] text-muted"><span className="text-good">개선 {cmp.improved_cases}</span><span>같음 {cmp.same_cases}</span><span className="text-bad">저하 {cmp.regressed_cases}</span></div>}>
         <Card className="py-5"><DiffChart cases={cases} onOpen={onOpenCase} /></Card>
       </Section>
       {(summary.by_category?.length ?? 0) > 1 && (
         <Section title={<MetricTitle name={`ΔnDCG@${k} by category`} ko="분류별 nDCG 차이" term="ndcg_diff"
-          hint={`분류마다 ${candidate} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다. 막대에 올리면 실제 값이 보입니다.`} />}>
+          hint={hint("category_diff", { candidate })} />}>
           <div className="mb-6 border-y border-line py-6"><CategoryBars summary={summary} targets={targets} candidate={candidate} /></div>
           <Collapsible title="분류별 숫자로 보기">
           <div className="overflow-x-auto">
