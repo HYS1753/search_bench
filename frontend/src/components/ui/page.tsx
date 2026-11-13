@@ -6,14 +6,14 @@ import { TermTip } from "./overlay";
 
 /* 레이아웃 원칙: 상자(카드) 대신 얇은 선으로 영역을 나눈다. 모든 행·칸은 폭이 줄면 줄바꿈된다. */
 
-export function PageHeader({ title, description, actions, eyebrow }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+export function PageHeader({ title, description, actions, eyebrow, compactTitle }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; compactTitle?: boolean }) {
   return (
     <header className="mb-10">
       {/* 그룹 이름은 사이드바에 이미 보이므로 사이드바가 접히는 좁은 화면에서만 보여 준다 */}
       {eyebrow && <div className="mb-2 text-[13px] font-medium text-muted lg:hidden">{eyebrow}</div>}
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-        <h1 className="min-w-0 break-keep text-[28px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      <div className={cn("flex flex-wrap justify-between gap-x-6 gap-y-4", compactTitle ? "items-center" : "items-start")}>
+        <h1 className={cn("min-w-0 text-[28px] font-bold leading-tight tracking-tight text-ink", compactTitle ? "flex-1 basis-[320px]" : "break-keep")}>{title}</h1>
+        {actions && <div className={cn("flex flex-wrap items-center gap-2", compactTitle && "ml-auto shrink-0 justify-end")}>{actions}</div>}
       </div>
       {description && <p className="mt-3 max-w-3xl break-keep text-[15px] leading-relaxed text-muted">{description}</p>}
     </header>
@@ -162,9 +162,18 @@ export function Tabs<T extends string>({ value, onChange, items, className }: { 
 }
 
 export function Segmented<T extends string>({ value, onChange, items, className }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[]; className?: string }) {
-  // 선택 표시를 버튼 뒤의 한 덩어리로 그려, 값이 바뀌면 그 자리로 미끄러져 간다(줄바꿈돼도 위치를 재서 따라감)
+  /*
+   * 선택 표시(유리 알약)를 버튼 뒤의 한 덩어리로 그린다.
+   *  - 값이 바뀌면 그 자리로 미끄러져 간다(줄바꿈돼도 위치를 재서 따라감)
+   *  - 선택된 칸을 누른 채 좌우로 끌면 알약이 손가락을 따라오고, 놓은 자리의 항목이 선택된다
+   *  - 누르는 동안 알약이 살짝 커지며 유리(liquid glass) 질감이 진해진다
+   */
   const wrap = useRef<HTMLDivElement>(null);
   const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [drag, setDrag] = useState<{ x: number; w: number; pressed: boolean } | null>(null);
+  const start = useRef<{ px: number; x0: number; moved: boolean; id: number } | null>(null);
+  const suppressClick = useRef(false);
+  const buttons = () => [...(wrap.current?.querySelectorAll<HTMLButtonElement>("[data-value]") ?? [])];
   useLayoutEffect(() => {
     const measure = () => {
       const el = wrap.current?.querySelector<HTMLButtonElement>(`[data-value="${CSS.escape(String(value))}"]`);
@@ -175,20 +184,74 @@ export function Segmented<T extends string>({ value, onChange, items, className 
     if (wrap.current) ro.observe(wrap.current);
     return () => ro.disconnect();
   }, [value, items.length]);
+
+  // 끌기는 한 줄일 때만(줄바꿈되면 좌우 이동이 의미 없음)
+  const oneRow = () => new Set(buttons().map((b) => b.offsetTop)).size === 1;
+  const under = (center: number) => {
+    const bs = buttons();
+    return bs.reduce((best, b) => (Math.abs(b.offsetLeft + b.offsetWidth / 2 - center) < Math.abs(best.offsetLeft + best.offsetWidth / 2 - center) ? b : best), bs[0]);
+  };
+  const onPointerDown = (e: React.PointerEvent) => {
+    const target = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-value]");
+    if (!pill || !target || target.dataset.value !== String(value) || e.button !== 0) return;
+    start.current = { px: e.clientX, x0: pill.x, moved: false, id: e.pointerId };
+    setDrag({ x: pill.x, w: pill.w, pressed: true });
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const st = start.current;
+    if (!st || !pill || !wrap.current) return;
+    const dx = e.clientX - st.px;
+    if (!st.moved && Math.abs(dx) < 4) return;
+    if (!st.moved) {
+      if (!oneRow()) return;
+      st.moved = true;
+      wrap.current.setPointerCapture(st.id);
+    }
+    const bs = buttons();
+    const min = bs[0].offsetLeft;
+    const last = bs[bs.length - 1];
+    const x = Math.max(min, Math.min(last.offsetLeft + last.offsetWidth - pill.w, st.x0 + dx));
+    const target = under(x + pill.w / 2);
+    setDrag({ x, w: target.offsetWidth, pressed: true });
+  };
+  const finish = (e: React.PointerEvent) => {
+    const st = start.current;
+    start.current = null;
+    if (!st) return;
+    if (st.moved && drag) {
+      suppressClick.current = true;
+      const target = under(drag.x + drag.w / 2);
+      const v = target.dataset.value as T;
+      if (v !== value) onChange(v);
+      if (wrap.current?.hasPointerCapture(e.pointerId)) wrap.current.releasePointerCapture(e.pointerId);
+    }
+    setDrag(null);
+  };
+
+  const dragging = !!drag && !!start.current?.moved;
+  const x = drag && dragging ? drag.x : pill?.x ?? 0;
+  const w = drag && dragging ? drag.w : pill?.w ?? 0;
   return (
-    <div ref={wrap} className={cn("relative inline-flex max-w-full flex-wrap rounded-xl bg-subtle p-1", className)}>
+    <div ref={wrap} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={finish} onPointerCancel={finish}
+      className={cn("glass-track relative inline-flex max-w-full touch-pan-y select-none flex-wrap rounded-xl p-1", className)}>
       {pill && (
-        <span aria-hidden className="absolute left-0 top-0 rounded-lg bg-panel shadow-soft transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />
+        <span aria-hidden data-pressed={!!drag?.pressed}
+          className={cn("glass-pill absolute left-0 top-0 rounded-lg",
+            dragging ? "transition-[width,box-shadow] duration-200" : "transition-[transform,width,height,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]")}
+          style={{ transform: `translate(${x}px, ${pill.y}px) scale(${drag?.pressed ? 1.06 : 1})`, width: w, height: pill.h }} />
       )}
       {items.map((it) => (
         <button
           key={it.value}
           data-value={it.value}
           type="button"
-          onClick={() => onChange(it.value)}
+          onClick={() => {
+            if (suppressClick.current) { suppressClick.current = false; return; }
+            onChange(it.value);
+          }}
           aria-pressed={value === it.value}
-          className={cn("relative z-[1] rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200", value === it.value ? "text-ink" : "text-muted hover:text-ink", !pill && value === it.value && "bg-panel shadow-soft")}
+          className={cn("relative z-[1] rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200",
+            value === it.value ? "cursor-grab text-ink active:cursor-grabbing" : "text-muted hover:text-ink", !pill && value === it.value && "bg-panel shadow-soft")}
         >
           {it.label}
         </button>

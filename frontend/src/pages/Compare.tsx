@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GitCompareArrows, ListPlus, Search } from "lucide-react";
+import { GitCompareArrows, ListPlus, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { SideBySide } from "@/components/results/SideBySide";
@@ -8,7 +8,7 @@ import { Dialog } from "@/components/ui/overlay";
 import { Alert, Button, Code, Empty, Input, PageSkeleton, Select, Spinner } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
-import { fmt } from "@/lib/format";
+import { cn, fmt } from "@/lib/format";
 import type { CompareResult, CompareSide, Dataset, Suite } from "@/lib/types";
 
 /** 지금 비교한 입력을 테스트 데이터에 한 줄로 더한다 — 눈으로 본 좋은/나쁜 사례를 평가에 모으기 */
@@ -95,7 +95,8 @@ function overlap(base: CompareSide, cand: CompareSide) {
 export default function Compare() {
   const [params, setParams] = useSearchParams();
   const suites = useQuery({ queryKey: ["suites"], queryFn: () => api.get<Suite[]>("/suites") });
-  const suite = suites.data?.find((s) => s.id === Number(params.get("suite"))) ?? suites.data?.[0];
+  // 주소에 세트가 있으면 그 세트, 세트가 하나뿐이면 그 세트. 여러 개면 사용자가 고를 때까지 입력칸을 접어 둔다
+  const suite = suites.data?.find((s) => s.id === Number(params.get("suite"))) ?? (suites.data?.length === 1 ? suites.data[0] : undefined);
   const suiteId = suite?.id ?? 0;
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState(false);
@@ -143,15 +144,21 @@ export default function Compare() {
         description="같은 입력을 모든 API 에 동시에 보내 결과를 나란히 봅니다. 채점은 하지 않고 결과만 확인하는 화면입니다. 채점은 평가에서 합니다."
       />
       <form onSubmit={submit} className="mb-14 border-y border-line py-7">
-        <div className="grid gap-x-6 gap-y-5 md:grid-cols-[minmax(0,280px)_1fr]">
-          <label className="block min-w-0">
-            <span className="mb-1.5 block text-[13px] font-medium">비교 세트</span>
-            <Select value={suiteId} onChange={(e) => setParams({ suite: e.target.value })}>
+        <div className="min-w-0">
+          <span className="mb-1.5 block text-[13px] font-medium">비교 세트</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select className="min-w-0 flex-1 sm:max-w-md" value={suiteId || ""} onChange={(e) => e.target.value && setParams({ suite: e.target.value })}>
+              {!suite && <option value="">비교 세트를 고르세요</option>}
               {suites.data.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
-            {suite && <span className="mt-1.5 block truncate text-[12.5px] text-muted">{suite.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")}</span>}
-          </label>
-          <div className="min-w-0 space-y-6">
+            <Link to="/settings/suites?new=1"><Button type="button" icon={<Plus className="h-4 w-4" />}>새 세트</Button></Link>
+          </div>
+          {suite && <span className="mt-1.5 block truncate text-[12.5px] text-muted">{suite.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")}</span>}
+        </div>
+        {/* 세트를 고르면 그 세트의 입력칸이 높이 애니메이션으로 펼쳐진다 */}
+        <div className={cn("grid transition-[grid-template-rows,opacity] duration-300 ease-out", suite ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+          <div className="min-h-0 overflow-hidden">
+          <div key={suiteId} className="animate-tab mt-6 min-w-0 space-y-6 border-t border-line pt-6">
             {groups.map((g) => (
               <div key={g.scope || "shared"} className="min-w-0">
                 {groups.length > 1 && (
@@ -183,11 +190,13 @@ export default function Compare() {
                 </div>
               </div>
             ))}
+          <div className="flex justify-end">
+            <Button type="submit" variant="primary" size="lg" icon={<Search className="h-4 w-4" />} loading={run.isPending} disabled={!suite || required.length > 0}>결과 보기</Button>
+          </div>
+          </div>
           </div>
         </div>
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" variant="primary" size="lg" icon={<Search className="h-4 w-4" />} loading={run.isPending} disabled={required.length > 0}>결과 보기</Button>
-        </div>
+        {!suite && <p className="mt-4 text-[13px] text-muted">세트를 고르면 그 세트가 받는 입력칸이 여기에 펼쳐집니다.</p>}
       </form>
 
       {run.isError && <Alert tone="bad" className="mb-6" title="불러오지 못했습니다">{(run.error as Error).message}</Alert>}

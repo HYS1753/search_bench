@@ -298,8 +298,12 @@ export default function Models() {
                   )}
                 </div>
               </div>
+              {/* 오른쪽 칸은 폭을 고정해 모델마다 '기본으로 · 상태 · 버튼' 열이 맞도록 한다 */}
+              <div className="flex w-[76px] justify-end max-sm:w-auto">
+                {!m.is_default && <Button size="sm" variant="ghost" onClick={() => setDefault.mutate(m.id)}>기본으로</Button>}
+              </div>
               <Tooltip content={m.last_test_message || "아직 테스트하지 않았습니다"}>
-                <span className="flex items-center gap-1.5 text-[13px]">
+                <span className="flex w-[136px] items-center gap-1.5 text-[13px] max-sm:w-auto">
                   {m.last_test_ok === true ? (
                     <><CheckCircle2 className="h-4 w-4 text-good" /><span className="text-good">연결됨</span></>
                   ) : m.last_test_ok === false ? (
@@ -312,7 +316,6 @@ export default function Models() {
               </Tooltip>
               <div className="flex items-center gap-1">
                 <Button size="sm" icon={<Zap className="h-3.5 w-3.5" />} loading={testing === m.id} onClick={() => test(m)}>연결 테스트</Button>
-                {!m.is_default && <Button size="sm" variant="ghost" onClick={() => setDefault.mutate(m.id)}>기본으로</Button>}
                 <Button size="sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => setEditing(toForm(m))}>수정</Button>
                 <Button size="icon" variant="ghost" aria-label="삭제" onClick={() => remove(m)}><Trash2 className="h-4 w-4" /></Button>
               </div>

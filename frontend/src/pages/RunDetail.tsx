@@ -9,7 +9,7 @@ import { HumanReview } from "@/components/results/HumanReview";
 import { ShareDialog } from "@/components/results/ShareDialog";
 import { RunSummaryView } from "@/components/results/RunSummaryView";
 import { StatusBadge } from "@/components/results/Verdict";
-import { Menu, useConfirm } from "@/components/ui/overlay";
+import { Menu, Tooltip, useConfirm } from "@/components/ui/overlay";
 import { KeyValue, PageHeader, Section, Segmented, Tabs } from "@/components/ui/page";
 import { Alert, Badge, Button, Card, Code, Input, PageSkeleton, Progress, Select, Spinner } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast";
@@ -131,7 +131,13 @@ export default function RunDetail() {
     <>
       <Link to="/runs" className="mb-4 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="h-3.5 w-3.5" />평가 실행 기록</Link>
       <PageHeader
-        title={<span className="flex flex-wrap items-center gap-3">{r.name}<StatusBadge status={r.status} /></span>}
+        compactTitle
+        title={
+          <span className="flex min-w-0 items-center gap-3">
+            <Tooltip content={r.name}><span className="min-w-0 truncate">{r.name}</span></Tooltip>
+            <span className="shrink-0 text-[14px] font-normal tracking-normal"><StatusBadge status={r.status} /></span>
+          </span>
+        }
         description={`#${r.id} · ${r.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")} · ${r.dataset_name ?? "-"}${r.dataset_version ? ` v${r.dataset_version}` : ""} · 판정 ${r.judge_model?.name ?? "-"} (${r.judge_model?.model ?? ""}) · 시작 ${fmt.date(r.started_at ?? r.created_at)} · 소요 ${fmt.duration(r.started_at, r.finished_at)}`}
         actions={
           <>

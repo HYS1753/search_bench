@@ -3,6 +3,7 @@ import { Columns3, History, Play, Search, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { StatusBadge, VerdictBadge, WinBar } from "@/components/results/Verdict";
+import { Tooltip } from "@/components/ui/overlay";
 import { PageHeader, Segmented } from "@/components/ui/page";
 import { Button, Card, Empty, Input, Progress, Spinner } from "@/components/ui/primitives";
 import { api, qs } from "@/lib/api";
@@ -58,7 +59,7 @@ export default function Runs() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-sm">
-            <thead className="border-b border-line text-[12px] text-muted">
+            <thead className="border-b border-line text-[12px] text-muted [&_th]:whitespace-nowrap">
               <tr>
                 <th className="w-10 pl-5 pr-0 py-3 text-left font-medium" title="비교할 실행 고르기"><Columns3 className="h-3.5 w-3.5" /></th>
                 <th className="px-3 py-3 text-left font-medium">실행</th>
@@ -80,33 +81,35 @@ export default function Runs() {
                       <input type="checkbox" aria-label={`${r.name} 비교에 넣기`} className="h-4 w-4 accent-[rgb(var(--accent))]"
                         checked={picked.includes(r.id)} disabled={active} onChange={() => toggle(r.id)} />
                     </td>
-                    <td className="px-3 py-3.5">
-                      <Link to={`/runs/${r.id}`} className="block">
-                        <div className="font-medium text-ink hover:text-accent"><span className="num mr-1.5 text-faint">#{r.id}</span>{r.name}</div>
-                        <div className="mt-0.5 text-[12.5px] text-muted">
-                          {fmt.date(r.created_at)} · {r.members.map((m) => m.label).join(" vs ")} · {fmt.int(r.total)}건 · {r.judge_model?.name}
-                        </div>
-                      </Link>
+                    <td className="w-full max-w-0 px-3 py-3.5">
+                      <Tooltip content={<><span className="num mr-1 opacity-70">#{r.id}</span>{r.name}</>}>
+                        <Link to={`/runs/${r.id}`} className="block min-w-0">
+                          <div className="truncate font-medium text-ink hover:text-accent"><span className="num mr-1.5 text-faint">#{r.id}</span>{r.name}</div>
+                          <div className="mt-0.5 truncate text-[12.5px] text-muted">
+                            {r.members.map((m) => m.label).join(" vs ")} · {fmt.int(r.total)}건 · {r.judge_model?.name}
+                          </div>
+                        </Link>
+                      </Tooltip>
                     </td>
-                    <td className="px-3">
+                    <td className="whitespace-nowrap px-3">
                       <StatusBadge status={r.status} />
                       {active && <Progress className="mt-1.5 w-24" value={r.completed + r.failed} max={r.total} />}
                       {r.failed > 0 && !active && <div className="mt-1 text-[11.5px] text-bad">오류 {r.failed}건</div>}
                     </td>
-                    <td className="px-3"><VerdictBadge verdict={h?.verdict} /></td>
-                    <td className={`num px-3 text-right font-semibold ${h?.ndcg_diff && h.ndcg_diff > 0 ? "text-good" : h?.ndcg_diff && h.ndcg_diff < 0 ? "text-bad" : ""}`}>
+                    <td className="whitespace-nowrap px-3"><VerdictBadge verdict={h?.verdict} /></td>
+                    <td className={`num whitespace-nowrap px-3 text-right font-semibold ${h?.ndcg_diff && h.ndcg_diff > 0 ? "text-good" : h?.ndcg_diff && h.ndcg_diff < 0 ? "text-bad" : ""}`}>
                       {fmt.signed(h?.ndcg_diff)}
                     </td>
                     <td className="px-3">
                       {h?.wins !== null && h?.wins !== undefined ? (
-                        <div>
+                        <div className="w-36">
                           <WinBar wins={h.wins} ties={h.ties ?? 0} losses={h.losses ?? 0} />
-                          <div className="num mt-1 text-[11.5px] text-muted">{h.wins}승 {h.ties}무 {h.losses}패</div>
+                          <div className="num mt-1 whitespace-nowrap text-[11.5px] text-muted">{h.wins}승 {h.ties}무 {h.losses}패</div>
                         </div>
                       ) : <span className="text-faint">–</span>}
                     </td>
-                    <td className="num px-3 text-right text-muted">{fmt.usd(r.cost_estimate)}</td>
-                    <td className="px-5 text-right text-[12.5px] text-muted">{fmt.date(r.created_at)}</td>
+                    <td className="num whitespace-nowrap px-3 text-right text-muted">{fmt.usd(r.cost_estimate)}</td>
+                    <td className="whitespace-nowrap px-5 text-right text-[12.5px] text-muted">{fmt.date(r.created_at)}</td>
                   </tr>
                 );
               })}

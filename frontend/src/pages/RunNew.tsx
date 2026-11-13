@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, ClipboardList, FileUp, Info, Play, Sparkles, Table2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardList, FileUp, Info, Play, Search, Sparkles, Table2 } from "lucide-react";
 import { CompatBadge } from "@/components/datasets/Compat";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -92,6 +92,39 @@ function InputGrid({ columns, rows, onChange }: { columns: { key: string; label:
 
 const critDesc = (c: Criteria) =>
   `상위 ${c.k}개 · ${STRICT_LABEL[c.relevant_threshold]} 기준 · ${c.pairwise_enabled ? "목록 비교 포함" : "항목 판정만"}${c.user_requirements.trim() ? " · 추가 조건 있음" : ""}`;
+
+/** 비교 세트가 많을 때: 이름·대상·입력으로 찾는 목록. 선택한 행은 강조, 목록은 일정 높이에서 스크롤 */
+function SuiteList({ items, value, onChange }: { items: { value: number; title: string; desc: string }[]; value: number | ""; onChange: (v: number) => void }) {
+  const [q, setQ] = useState("");
+  const shown = items.filter((it) => !q.trim() || `${it.title} ${it.desc}`.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-panel/70">
+      <div className="relative border-b border-line">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`비교 세트 ${items.length}개 중 찾기 — 이름·API·입력`}
+          className="h-11 w-full bg-transparent pl-10 pr-4 text-[14px] outline-none placeholder:text-faint" />
+      </div>
+      <div role="radiogroup" className="scroll-thin max-h-[360px] divide-y divide-line overflow-y-auto">
+        {shown.map((it) => {
+          const on = it.value === value;
+          return (
+            <button key={it.value} type="button" role="radio" aria-checked={on} onClick={() => onChange(it.value)}
+              className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors", on ? "bg-accent-soft/60" : "hover:bg-subtle/60")}>
+              <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded-full border", on ? "border-accent" : "border-faint")}>
+                {on && <span className="h-2 w-2 rounded-full bg-accent" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] font-semibold" title={it.title}>{it.title}</span>
+                <span className="block truncate text-[12.5px] text-muted" title={it.desc}>{it.desc}</span>
+              </span>
+            </button>
+          );
+        })}
+        {!shown.length && <div className="px-4 py-8 text-center text-[13px] text-muted">‘{q}’ 와 맞는 세트가 없습니다.</div>}
+      </div>
+    </div>
+  );
+}
 
 export default function RunNew() {
   const [params] = useSearchParams();
@@ -327,16 +360,17 @@ export default function RunNew() {
           {step === 0 && (
             <>
               <div className="mb-4 text-[15px] font-semibold">어떤 검색을 비교할까요?</div>
-              <ChoiceList
-                value={suiteId}
-                onChange={(v) => setSuiteId(v)}
-                columns={2}
-                items={suites.data!.map((s) => ({
+              {(() => {
+                const items = suites.data!.map((s) => ({
                   value: s.id,
                   title: s.name,
                   desc: `${s.members.map((m) => `${m.label}${m.is_baseline ? "(기준)" : ""}`).join(" vs ")} · 입력 ${s.input_fields.map((f) => f.label || f.key).join(", ")}`,
-                }))}
-              />
+                }));
+                // 5개까지는 카드, 넘으면 검색되는 목록(스크롤)으로
+                return items.length > 5
+                  ? <SuiteList items={items} value={suiteId} onChange={(v) => setSuiteId(v)} />
+                  : <ChoiceList value={suiteId} onChange={(v) => setSuiteId(v)} columns={2} items={items} />;
+              })()}
               <div className="mt-4 text-[13px] text-muted">찾는 세트가 없으면 <Link to="/settings/suites" className="text-accent">비교 세트 만들기 →</Link></div>
             </>
           )}

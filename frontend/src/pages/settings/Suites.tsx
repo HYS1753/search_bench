@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NextStep } from "@/components/onboarding/NextStep";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Layers, Pencil, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Drawer, useConfirm } from "@/components/ui/overlay";
 import { ChoiceList, FormRow, PageHeader, Rows, Steps } from "@/components/ui/page";
 import { Alert, Badge, Button, Code, Empty, Input, Select, Spinner } from "@/components/ui/primitives";
@@ -592,6 +592,12 @@ export default function Suites() {
     if (cs.length === 1) f.members = f.members.map((m, i) => (i > 0 ? { ...m, criteria_id: cs[0].id } : m));
     setEditing(f);
   };
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get("new") !== "1" || !targets.data || !criteria.data) return;
+    setParams((p) => { p.delete("new"); return p; }, { replace: true });
+    if (targets.data.length >= 2) newSuite();
+  }, [params, targets.data, criteria.data]); // eslint-disable-line react-hooks/exhaustive-deps
   const critName = (id: number | null) => criteria.data?.find((c) => c.id === id)?.name;
   const tooFew = (targets.data?.length ?? 0) < 2 && !targets.isLoading;
   return (
