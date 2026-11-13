@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown } from "lucide-react";
-import { Children, useState, type CSSProperties, type ReactNode } from "react";
+import { Children, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/format";
 import { TermTip } from "./overlay";
@@ -162,14 +162,33 @@ export function Tabs<T extends string>({ value, onChange, items, className }: { 
 }
 
 export function Segmented<T extends string>({ value, onChange, items, className }: { value: T; onChange: (v: T) => void; items: { value: T; label: ReactNode }[]; className?: string }) {
+  // 선택 표시를 버튼 뒤의 한 덩어리로 그려, 값이 바뀌면 그 자리로 미끄러져 간다(줄바꿈돼도 위치를 재서 따라감)
+  const wrap = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = wrap.current?.querySelector<HTMLButtonElement>(`[data-value="${CSS.escape(String(value))}"]`);
+      setPill(el ? { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight } : null);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (wrap.current) ro.observe(wrap.current);
+    return () => ro.disconnect();
+  }, [value, items.length]);
   return (
-    <div className={cn("inline-flex max-w-full flex-wrap rounded-xl bg-subtle p-1", className)}>
+    <div ref={wrap} className={cn("relative inline-flex max-w-full flex-wrap rounded-xl bg-subtle p-1", className)}>
+      {pill && (
+        <span aria-hidden className="absolute left-0 top-0 rounded-lg bg-panel shadow-soft transition-[transform,width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{ transform: `translate(${pill.x}px, ${pill.y}px)`, width: pill.w, height: pill.h }} />
+      )}
       {items.map((it) => (
         <button
           key={it.value}
+          data-value={it.value}
           type="button"
           onClick={() => onChange(it.value)}
-          className={cn("rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors", value === it.value ? "bg-panel text-ink shadow-soft" : "text-muted hover:text-ink")}
+          aria-pressed={value === it.value}
+          className={cn("relative z-[1] rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors duration-200", value === it.value ? "text-ink" : "text-muted hover:text-ink", !pill && value === it.value && "bg-panel shadow-soft")}
         >
           {it.label}
         </button>

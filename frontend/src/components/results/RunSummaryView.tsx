@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, ChevronDown, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { ANIM, AXIS_TICK, BAD, CURSOR_FILL, ChartEmpty, ChartTooltip, GOOD, GRID, NEUTRAL } from "@/components/ui/chart";
@@ -214,16 +214,8 @@ export function RunSummaryView({
           검색 품질 자체는 <b>Hit@1</b>(1위가 맞는 비율)과 <b>1위 평균 등급</b>({fmt.num(baseTop1, 1)} → {fmt.num(candTop1, 1)} / 3)으로 보세요. 두 API 모두 낮다면 테스트 질의가 검색 범위 밖이거나 평가 기준이 엄격한 것일 수 있습니다.
         </Alert>
       )}
-      <section className="mb-14 border-y border-line">
-        <button type="button" onClick={() => setStatsOpen(!statsOpen)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 py-4 text-left" aria-expanded={statsOpen}>
-          <span className="text-[17px] font-bold tracking-tight">통계 상세</span>
-          <span className="text-[13px] text-muted">
-            순열 검정 p {pval((cmp.multiple_comparisons ?? 1) > 1 ? cmp.permutation_p_holm : cmp.permutation_p)} · 효과 크기 {fmt.num(cmp.effect_size, 2)} · 필요한 케이스 {cmp.needed_cases ? `${fmt.int(cmp.needed_cases)}건` : "–"}
-          </span>
-          <span className="ml-auto inline-flex items-center gap-1 text-[13px] font-medium text-accent">{statsOpen ? "접기" : "펼치기"}<ChevronDown className={cn("h-4 w-4 transition-transform duration-300", statsOpen && "rotate-180")} /></span>
-        </button>
-        {statsOpen && (
-        <div className="animate-fade-up pb-6">
+      <Collapsible className="mb-14" title="통계 상세" open={statsOpen} onOpenChange={setStatsOpen}
+        summary={<>순열 검정 p {pval((cmp.multiple_comparisons ?? 1) > 1 ? cmp.permutation_p_holm : cmp.permutation_p)} · 효과 크기 {fmt.num(cmp.effect_size, 2)} · 필요한 케이스 {cmp.needed_cases ? `${fmt.int(cmp.needed_cases)}건` : "–"}</>}>
         <p className="mb-4 text-[13.5px] text-muted">결론을 여러 방법으로 교차 확인합니다. 모두 같은 방향이면 믿을 만합니다.</p>
         <StatRow min={200}>
           <Stat label={(cmp.multiple_comparisons ?? 1) > 1 ? "순열 검정 p (Holm 보정)" : "순열 검정 p"} term={(cmp.multiple_comparisons ?? 1) > 1 ? "holm" : "permutation"}
@@ -239,9 +231,7 @@ export function RunSummaryView({
           <Stat label="Hit@1 차이 95% 구간" term="hit1" value={cmp.hit1_ci ? <Range a={fmt.signedPct(cmp.hit1_ci[0])} b={fmt.signedPct(cmp.hit1_ci[1])} /> : "–"}
             sub={`nDCG 차이 표준편차 ${fmt.num(cmp.ndcg_sd, 3)}`} />
         </StatRow>
-        </div>
-        )}
-      </section>
+      </Collapsible>
       <RunCharts summary={summary} k={k} cmp={cmp} />
       <Collapsible className="mb-14" title="대상별 지표 숫자로 보기" summary="위 차트의 값을 표로 봅니다. 후보가 기준보다 좋으면 초록, 나쁘면 빨강.">
         <TargetTable targets={targets} k={k} candidate={candidate} />

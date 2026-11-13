@@ -217,6 +217,7 @@ export default function RunDetail() {
         )}
       </div>
 
+      <div key={tab} className="animate-tab">
       {tab === "summary" && r.summary && (() => {
         const rv = r.summary.review;
         const hasHuman = !!r.summary.combined;
@@ -390,6 +391,7 @@ export default function RunDetail() {
           </Section>
         </div>
       )}
+      </div>
 
       {(() => {
         const ids = (cases.data?.items ?? []).map((x) => x.id);

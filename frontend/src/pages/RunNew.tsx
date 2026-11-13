@@ -99,7 +99,13 @@ export default function RunNew() {
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState(params.get("dataset") && params.get("suite") ? 1 : 0);
+  const [step, setStepRaw] = useState(params.get("dataset") && params.get("suite") ? 1 : 0);
+  // 단계 이동 방향(앞 +1 / 뒤 −1)에 따라 들어오는 쪽을 바꾼다
+  const dir = useRef(1);
+  const setStep = (n: number) => {
+    dir.current = n >= step ? 1 : -1;
+    setStepRaw(n);
+  };
   const [suiteId, setSuiteId] = useState<number | "">(Number(params.get("suite")) || "");
   const [source, setSource] = useState<Source>(params.get("dataset") ? "saved" : "paste");
   const [datasetId, setDatasetId] = useState<number | "">(Number(params.get("dataset")) || "");
@@ -317,6 +323,7 @@ export default function RunNew() {
         <>
           <Steps steps={STEPS} current={step} onJump={setStep} />
 
+          <div key={step} className={dir.current >= 0 ? "step-next" : "step-prev"}>
           {step === 0 && (
             <>
               <div className="mb-4 text-[15px] font-semibold">어떤 검색을 비교할까요?</div>
@@ -619,6 +626,8 @@ export default function RunNew() {
               <Alert className="mt-6" icon={<Info className="h-4 w-4" />}>시작하면 서버에서 진행됩니다. 다른 화면으로 가도 왼쪽 아래에서 진행률을 볼 수 있고, 끝나면 알림이 뜹니다.</Alert>
             </>
           )}
+
+          </div>
 
           <div className={cn("mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6")}>
             {step > 0 ? <Button variant="ghost" onClick={() => setStep(step - 1)}><ArrowLeft className="h-4 w-4" />이전</Button> : <span />}

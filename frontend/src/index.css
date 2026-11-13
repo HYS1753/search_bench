@@ -94,6 +94,13 @@ mark { background: rgb(var(--warn-soft)); color: inherit; border-radius: 3px; pa
 .animate-fade-up { animation: fade-up 0.4s var(--ease-out) both; }
 .animate-fade-in { animation: fade-in 0.2s var(--ease-out) both; }
 .animate-pop { animation: pop-in 0.18s var(--ease-out) both; }
+/* 탭·필터 전환: 내용만 짧게 떠오른다 */
+.animate-tab { animation: fade-up 0.22s var(--ease-out) both; }
+/* 마법사 단계: 앞으로 가면 오른쪽에서, 뒤로 가면 왼쪽에서 들어온다 */
+@keyframes step-in-next { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes step-in-prev { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.step-next { animation: step-in-next 0.26s var(--ease-out) both; }
+.step-prev { animation: step-in-prev 0.26s var(--ease-out) both; }
 .animate-check { animation: check-pop 0.36s var(--ease-spring) both; }
 
 /* 목록·섹션 순차 등장 */
