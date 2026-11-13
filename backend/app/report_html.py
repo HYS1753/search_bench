@@ -64,9 +64,59 @@ def _inputs_text(v: Any) -> str:
     return ", ".join(map(str, v)) if isinstance(v, list) else ("" if v is None else str(v))
 
 
-def _section(title: str, desc: str, body: str) -> str:
+def _section(title: str, desc: str, body: str, ko: str = "") -> str:
     d = f'<p class="desc">{e(desc)}</p>' if desc else ""
-    return f'<section><h2>{e(title)}</h2>{d}{body}</section>'
+    k = f' <span class="ko">{e(ko)}</span>' if ko else ""
+    return f'<section><h2>{e(title)}{k}</h2>{d}{body}</section>'
+
+
+def _mt(name: str, ko: str) -> str:
+    """지표 이름: 정식 명칭 + 한국어 이름"""
+    return f'<b>{name}</b> <span class="ko">{e(ko)}</span>'
+
+
+def _bootstrap(diffs: list[float], n: int = 1000) -> tuple[float, tuple[float, float]] | None:
+    import random
+
+    if len(diffs) < 2:
+        return None
+    rnd = random.Random(42)
+    mean = sum(diffs) / len(diffs)
+    means = sorted(sum(rnd.choice(diffs) for _ in diffs) / len(diffs) for _ in range(n))
+    return mean, (means[int(n * 0.025)], means[int(n * 0.975)])
+
+
+def _forest(c: dict[str, Any], cases: list[RunCase], k: int) -> str:
+    cand, base = c["candidate"], c["baseline"]
+
+    def paired(key: str) -> list[float]:
+        out = []
+        for x in cases:
+            m = x.metrics or {}
+            a, b = (m.get(cand) or {}), (m.get(base) or {})
+            if a.get(key) is not None and b.get(key) is not None and a.get("ok", True) and b.get("ok", True):
+                out.append(a[key] - b[key])
+        return out
+
+    rows = [(f"ΔnDCG@{k}", "순위 품질", c.get("ndcg_diff"), c.get("ndcg_ci")), ("ΔHit@1", "1위 정답률", c.get("hit1_diff"), c.get("hit1_ci"))]
+    for key, name, ko in (("mrr", "ΔMRR", "첫 정답 순위"), ("precision", f"ΔP@{k}", "정밀도")):
+        b = _bootstrap(paired(key))
+        rows.append((name, ko, b[0] if b else None, list(b[1]) if b else None))
+    vals = [abs(v) for _, _, m, ci in rows for v in ([m] if m is not None else []) + (list(ci) if ci else [])]
+    lim = max(0.05, *vals) * 1.15 if vals else 0.05
+    pos = lambda v: (v + lim) / (2 * lim) * 100  # noqa: E731
+    ticks = [-lim, -lim / 2, 0, lim / 2, lim]
+    axis = "".join(f'<span style="left:{pos(t):.2f}%">{signed(t, 2)}</span>' for t in ticks)
+    lines = "".join(f'<i style="left:{pos(t):.2f}%"{" class=z" if t == 0 else ""}></i>' for t in ticks)
+    out = [f'<div class="frow fhead"><span></span><div class="faxis">{axis}</div><span class="r">평균 [95% 구간]</span></div>']
+    for name, ko, m, ci in rows:
+        tone = "good" if ci and ci[0] > 0 else "bad" if ci and ci[1] < 0 else "neutral"
+        seg = f'<span class="fci {tone}" style="left:{pos(ci[0]):.2f}%;width:{pos(ci[1]) - pos(ci[0]):.2f}%"></span>' if ci and m is not None else ""
+        dot = f'<span class="fdot {tone}" style="left:{pos(m):.2f}%"></span>' if m is not None else ""
+        txt = f'<b>{signed(m)}</b> [{signed(ci[0])}, {signed(ci[1])}]' if ci and m is not None else signed(m)
+        out.append(f'<div class="frow"><span>{_mt(name, ko)}</span><div class="ftrack">{lines}{seg}{dot}</div>'
+                   f'<span class="r num {"" if tone == "neutral" else tone}">{txt}</span></div>')
+    return f'<h3>{e(cand)} − {e(base)}</h3><div class="forest">{"".join(out)}</div>'
 
 
 def _target_color(targets: list[dict[str, Any]], label: str) -> str:
@@ -92,26 +142,28 @@ def _key_stats(c: dict[str, Any], targets: dict[str, dict[str, Any]], k: int) ->
     decided = c["wins"] + c["losses"]
     total = decided + c["ties"]
     stats = [
-        (f"nDCG@{k} 차이", signed(c.get("ndcg_diff")), tone_of(c.get("ndcg_diff")),
+        (_mt(f"ΔnDCG@{k}", "순위 품질 차이"), signed(c.get("ndcg_diff")), tone_of(c.get("ndcg_diff")),
          f"95% 신뢰구간 {signed(ci[0])} ~ {signed(ci[1])}<br>{num(base.get('ndcg'))} → {num(cand.get('ndcg'))} · {c.get('ndcg_cases')}건" if ci else ""),
-        ("목록 비교 승률", pct(c.get("win_rate")), "",
+        (_mt("Win rate", "목록 비교 승률"), pct(c.get("win_rate")), "",
          f"{c['wins']}승 {c['ties']}무 {c['losses']}패 · 부호 검정 p {pval(c.get('sign_test_p'))}"),
-        ("Hit@1", pct(cand.get("hit1")), tone_of(c.get("hit1_diff")),
+        (_mt("Hit@1", "1위 정답률"), pct(cand.get("hit1")), tone_of(c.get("hit1_diff")),
          f"기준 {pct(base.get('hit1'))} · 차이 {signed((c.get('hit1_diff') or 0) * 100, 0)}%p"),
-        ("판정 안정성", pct(1 - c["inconsistent"] / total) if total else "–", "",
+        (_mt("Consistency", "판정 일관성"), pct(1 - c["inconsistent"] / total) if total else "–", "",
          f"순서를 바꿔도 같은 판정 · 불일치 {c['inconsistent']}건"),
     ]
-    cells = "".join(f'<div class="stat"><div class="label">{e(lb)}</div><div class="value {t}">{v}</div><div class="sub">{s}</div></div>' for lb, v, t, s in stats)
+    cells = "".join(f'<div class="stat"><div class="label">{lb}</div><div class="value {t}">{v}</div><div class="sub">{s}</div></div>' for lb, v, t, s in stats)
     holm = (c.get("multiple_comparisons") or 1) > 1
-    extra = (f'<div class="statline">순열 검정 p{" (Holm 보정)" if holm else ""} {pval(c.get("permutation_p_holm") if holm else c.get("permutation_p"))} · '
-             f'효과 크기 d<sub>z</sub> {num(c.get("effect_size"), 2)} · 필요한 케이스 {e(c.get("needed_cases") or "–")}건</div>')
+    extra = (f'<div class="statline">Permutation p{" (Holm)" if holm else ""} 순열 검정 {pval(c.get("permutation_p_holm") if holm else c.get("permutation_p"))} · '
+             f"Cohen's d<sub>z</sub> 효과 크기 {num(c.get('effect_size'), 2)} · Required n 필요 케이스 {e(c.get('needed_cases') or '–')}건</div>")
     return f'<h3>{e(c["candidate"])} vs {e(c["baseline"])}</h3><div class="stats">{cells}</div>{extra}'
 
 
 def _metric_table(targets: list[dict[str, Any]], k: int) -> str:
     base = next((t for t in targets if t.get("is_baseline")), None)
     cols = [("ndcg", f"nDCG@{k}", 3), ("hit1", "Hit@1", None), ("mrr", "MRR", 3), ("precision", f"P@{k}", 3)]
-    head = "".join(f"<th class='r'>{e(lb)}</th>" for _, lb, _ in cols) + "<th class='r'>실패율</th><th class='r'>0건</th><th class='r'>응답 p50</th><th class='r'>응답 p95</th>"
+    kos = {"ndcg": "순위 품질", "hit1": "1위 정답률", "mrr": "첫 정답 순위", "precision": "정밀도"}
+    th = lambda name, ko: f"<th class='r'>{e(name)}<div class='thko'>{e(ko)}</div></th>"  # noqa: E731
+    head = "".join(th(lb, kos[key]) for key, lb, _ in cols) + th("Error", "호출 실패율") + th("Empty", "0건 비율") + th("p50", "응답 시간") + th("p95", "응답 시간")
     rows = []
     for t in targets:
         cells = []
@@ -331,8 +383,15 @@ th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding
 .kv{display:grid;grid-template-columns:180px 1fr;margin:0;border-top:1px solid var(--line)}
 .kv dt,.kv dd{margin:0;padding:10px 0;border-bottom:1px solid var(--line);font-size:13.5px}.kv dt{color:var(--muted)}.kv dd{white-space:pre-line;word-break:break-all}
 .warnbox{margin-top:16px;border-radius:12px;background:var(--warn-bg);color:var(--warn);padding:12px 16px;font-size:13px}
+h2 .ko,h3 .ko,.label .ko{font-weight:400;color:var(--muted)}h2 .ko{font-size:15px}.label b{color:var(--ink)}
+.thko{font-size:11px;font-weight:400;color:var(--faint)}th .thko{margin-top:1px}
+.forest{border-top:1px solid var(--line)}.frow{display:grid;grid-template-columns:minmax(150px,200px) 1fr minmax(170px,210px);gap:16px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
+.fhead{padding:6px 0;font-size:11.5px;color:var(--faint);border-bottom:0}.faxis{position:relative;height:16px}.faxis span{position:absolute;transform:translateX(-50%)}
+.ftrack{position:relative;height:22px}.ftrack i{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}.ftrack i.z{background:var(--faint)}
+.fci{position:absolute;top:50%;height:3px;margin-top:-1.5px;border-radius:99px;background:var(--faint);opacity:.55}.fci.good{background:var(--good)}.fci.bad{background:var(--bad)}
+.fdot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid var(--panel);background:var(--faint)}.fdot.good{background:var(--good)}.fdot.bad{background:var(--bad)}
 footer{margin-top:56px;color:var(--faint);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
-@media (max-width:760px){.page{padding:28px 16px 48px}.stats{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0;padding-left:0}.pair{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv dt{border-bottom:0;padding-bottom:0}}
+@media (max-width:760px){.frow{grid-template-columns:1fr;gap:4px}.fhead{display:none}.page{padding:28px 16px 48px}.stats{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0;padding-left:0}.pair{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv dt{border-bottom:0;padding-bottom:0}}
 @media print{body{background:#fff}.page{padding:0;max-width:none}section{break-inside:avoid-page}.cases tr{break-inside:avoid}.tablewrap{overflow:visible}
 @page{margin:14mm}}
 """
@@ -365,16 +424,18 @@ def to_html(run: Run, cases: list[RunCase]) -> str:
     if comparisons:
         parts.append(_section("핵심 지표", f"평가 기준 · {snap.get('criteria', {}).get('name', '')} (상위 {k}개)",
                               "".join(_key_stats(c, by_label, k) for c in comparisons)))
+        parts.append(_section("ΔMetrics", "점은 케이스 평균 차이, 선은 95% 신뢰구간. 선 전체가 0 오른쪽이면 확실한 개선(초록), 왼쪽이면 확실한 저하(빨강), 0 을 걸치면 우연일 수 있는 차이입니다.",
+                              "".join(_forest(c, cases, k) for c in comparisons), ko="지표별 차이와 신뢰구간"))
     if targets:
-        parts.append(_section("대상별 지표", "후보 행에서 기준보다 좋은 값은 초록, 나쁜 값은 빨강으로 표시합니다. 막대는 nDCG.", _metric_table(targets, k)))
+        parts.append(_section("Metrics by target", "후보 행에서 기준보다 좋은 값은 초록, 나쁜 값은 빨강으로 표시합니다. 막대는 nDCG.", _metric_table(targets, k), ko="대상별 지표"))
     if comparisons:
-        parts.append(_section("목록 비교 결과", "두 결과 목록을 통째로 보고 어느 쪽이 더 유용한지 판정한 결과입니다.", _split_bars(comparisons)))
+        parts.append(_section("Win rate", "두 결과 목록을 통째로 보고 어느 쪽이 더 유용한지 판정한 결과입니다.", _split_bars(comparisons), ko="목록 비교 승률"))
     dist = s.get("grade_distribution")
     if dist and targets:
         parts.append(_section(
             "결과의 질", "판정 모델이 매긴 관련도 등급의 비율입니다. 진한 색(매우 관련·관련)이 넓을수록 좋습니다. 오른쪽 숫자는 ‘매우 관련’ 비율.",
-            f'<div class="pair"><div><h3>1위 결과의 등급</h3>{_grade_bars(dist, targets, "top1")}</div>'
-            f'<div><h3>상위 {k}개 전체의 등급</h3>{_grade_bars(dist, targets, "items")}</div></div><div style="margin-top:12px">{_grade_legend()}</div>'))
+            f'<div class="pair"><div><h3>{_mt("Hit@1", "1위 결과의 등급 분포")}</h3>{_grade_bars(dist, targets, "top1")}</div>'
+            f'<div><h3>{_mt(f"P@{k}", f"상위 {k}개 등급 분포")}</h3>{_grade_bars(dist, targets, "items")}</div></div><div style="margin-top:12px">{_grade_legend()}</div>'))
     primary = comparisons[0] if comparisons else None
     if primary:
         cand, base = primary["candidate"], primary["baseline"]
@@ -386,11 +447,11 @@ def to_html(run: Run, cases: list[RunCase]) -> str:
                 diffs.append(a - b)
         counts = (f'<div class="counts"><span class="good">개선 {primary.get("improved_cases", 0)}</span>'
                   f'<span class="muted">같음 {primary.get("same_cases", 0)}</span><span class="bad">저하 {primary.get("regressed_cases", 0)}</span></div>')
-        parts.append(_section("케이스별 변화", f"막대 하나가 케이스 하나이고, 높이는 {cand} − {base} 의 nDCG 차이입니다. 위 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.",
-                              counts + _diff_svg(diffs)))
+        parts.append(_section(f"ΔnDCG@{k} by case", f"막대 하나가 케이스 하나이고, 높이는 {cand} − {base} 의 nDCG 차이입니다. 위 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.",
+                              counts + _diff_svg(diffs), ko="케이스별 nDCG 차이"))
         cat = _category(s, cand, base)
         if cat:
-            parts.append(_section("분류별", f"분류마다 {cand} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다.", cat))
+            parts.append(_section(f"ΔnDCG@{k} by category", f"분류마다 {cand} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다.", cat, ko="분류별 nDCG 차이"))
         parts.append(_section("케이스", f"전체 {len(cases)}건 · 차이와 목록 비교는 {cand} vs {base} 기준. 1위 옆 숫자는 관련도 등급(3 매우 관련 ~ 0 무관).",
                               _cases_table(run, cases, cand, base)))
     parts.append(_section("실행 설정", "실행 시점의 설정 사본입니다.", _settings(run)))

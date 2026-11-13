@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, ReferenceLine, R
 import {
   ANIM, AXIS_TICK, BAD, BASELINE_COLOR, CATEGORY_TICK, CURSOR_FILL, ChartEmpty, ChartTooltip, GOOD, GRID, LEGEND_STYLE, NEUTRAL, seriesColor,
 } from "@/components/ui/chart";
-import { TermTip } from "@/components/ui/overlay";
+import { MetricTitle, TermTip } from "@/components/ui/overlay";
 import { Section } from "@/components/ui/page";
 import { cn, fmt } from "@/lib/format";
 import type { Comparison, RunSummary, TargetSummary } from "@/lib/types";
@@ -27,21 +27,23 @@ function ChartTip({ active, payload, label, unit = "" }: { active?: boolean; pay
   return <ChartTooltip title={label} rows={payload.map((p) => ({ color: p.color, name: p.name, value: v(p.value) }))} />;
 }
 
-function Panel({ title, term, desc, children, className }: { title: string; term?: string; desc?: ReactNode; children: ReactNode; className?: string }) {
+/** 차트 한 칸. 제목은 정식 지표 이름 + 한국어 이름, ‘무엇을 보는지’ 설명은 (i) 안에 */
+export function Panel({ name, ko, term, hint, children, className }: { name: ReactNode; ko?: ReactNode; term?: string; hint?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <div className={cn("min-w-0 py-6", className)}>
-      <div className="flex items-center gap-1.5 text-[15px] font-semibold">
-        {title}
-        {term && <TermTip term={term} />}
-      </div>
-      {desc && <div className="mt-1 text-[13px] leading-relaxed text-muted">{desc}</div>}
+      <MetricTitle name={name} ko={ko} term={term} hint={hint} className="text-[15px]" />
       <div className="mt-5">{children}</div>
     </div>
   );
 }
 
+/** 섹션 제목 옆 (i) — 섹션 설명 문단 대신 */
+export function SectionTitle({ children, hint }: { children: ReactNode; hint: ReactNode }) {
+  return <span className="inline-flex items-center gap-2">{children}<TermTip hint={hint} /></span>;
+}
+
 /** 두 칸을 세로선으로 나눈 차트 줄(좁으면 위아래로 쌓임) */
-function Pair({ children }: { children: ReactNode }) {
+export function Pair({ children }: { children: ReactNode }) {
   return <div className="grid border-y border-line lg:grid-cols-2 lg:divide-x lg:divide-line [&>*]:lg:px-8 [&>*:first-child]:lg:pl-0 [&>*:last-child]:lg:pr-0 max-lg:divide-y max-lg:divide-line">{children}</div>;
 }
 
@@ -206,34 +208,34 @@ export function RunCharts({ summary, k, cmp }: { summary: RunSummary; k: number;
   const allHealthy = targets.every((t) => !(t.error_rate ?? 0) && !(t.empty_rate ?? 0));
   return (
     <>
-      <Section title="한눈에 보기" description="막대가 길수록 좋은 지표입니다. 회색이 기준, 색이 있는 막대가 후보입니다.">
+      <Section title={<SectionTitle hint="막대가 길수록 좋은 지표입니다. 회색이 기준, 색이 있는 막대가 후보입니다.">한눈에 보기</SectionTitle>}>
         <Pair>
-          <Panel title="지표 비교" term="ndcg" desc="0~1 사이 값입니다. 같은 지표끼리 막대 길이를 비교하세요.">
+          <Panel name={`nDCG@${k} · Hit@1 · MRR · P@${k}`} ko="순위 지표 비교" term="ndcg" hint="모두 0~1 사이 값입니다. 같은 지표끼리 막대 길이를 비교하세요.">
             <MetricBars targets={targets} k={k} />
           </Panel>
-          <Panel title="목록 비교 결과" term="pairwise" desc="두 결과 목록을 통째로 보고 어느 쪽이 더 유용한지 판정한 결과입니다.">
+          <Panel name="Win rate" ko="목록 비교 승률" term="pairwise" hint="두 결과 목록을 통째로 보고 어느 쪽이 더 유용한지 판정한 결과입니다. 승률은 무승부를 뺀 승/(승+패).">
             <OutcomeSplit cmp={cmp} />
           </Panel>
         </Pair>
       </Section>
       {dist && (
-        <Section title="결과의 질" description="판정 모델이 매긴 관련도 등급의 비율입니다. 진한 색(매우 관련·관련)이 넓을수록 좋습니다.">
+        <Section title={<SectionTitle hint="판정 모델이 매긴 관련도 등급(0~3)의 비율입니다. 진한 색(매우 관련·관련)이 넓을수록 좋습니다.">결과의 질</SectionTitle>}>
           <Pair>
-            <Panel title="1위 결과의 등급" term="hit1" desc="사용자가 가장 먼저 보는 결과가 얼마나 정확한가">
+            <Panel name="Hit@1" ko="1위 결과의 등급 분포" term="hit1" hint="사용자가 가장 먼저 보는 1위 결과가 얼마나 정확한지 봅니다. Hit@1 은 1위가 ‘관련’ 이상인 비율입니다.">
               <GradeBars dist={dist} targets={targets} which="top1" />
             </Panel>
-            <Panel title={`상위 ${k}개 전체의 등급`} term="grade" desc="보여 주는 결과 전체에 잡음이 얼마나 섞였나">
+            <Panel name={`P@${k}`} ko={`상위 ${k}개 등급 분포`} term="precision" hint={`보여 주는 상위 ${k}개 전체에 관련 없는 결과(잡음)가 얼마나 섞였는지 봅니다. P@${k} 는 ‘관련’ 이상 항목의 비율입니다.`}>
               <GradeBars dist={dist} targets={targets} which="items" />
             </Panel>
           </Pair>
         </Section>
       )}
-      <Section title="속도와 안정성" description="품질 차이가 장애나 속도 문제와 얽혀 있지 않은지 확인합니다.">
+      <Section title={<SectionTitle hint="품질 차이가 장애나 속도 문제와 얽혀 있지 않은지 확인합니다.">속도와 안정성</SectionTitle>}>
         <Pair>
-          <Panel title="응답 시간" term="latency" desc="성공한 호출 기준. 막대가 짧을수록 빠릅니다.">
+          <Panel name="Latency p50 · p95" ko="응답 시간" term="latency" hint="성공한 호출 기준입니다. 막대가 짧을수록 빠릅니다.">
             <LatencyBars targets={targets} />
           </Panel>
-          <Panel title="호출 실패 · 결과 없음" term="error_rate" desc="0%가 정상입니다.">
+          <Panel name="Error rate · Empty rate" ko="호출 실패율 · 0건 비율" term="error_rate" hint="0%가 정상입니다.">
             {allHealthy ? (
               <div className="flex items-center gap-2.5 border-y border-line py-4 text-[14px]">
                 <CheckCircle2 className="h-5 w-5 text-good" />

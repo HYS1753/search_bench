@@ -38,12 +38,12 @@ export function Section({ title, description, actions, children, className }: { 
 }
 
 /** 큰 숫자 지표 칸. StatRow 안에서 폭에 따라 자동으로 줄바꿈되고 칸 사이는 세로선으로 나뉜다. */
-export function Stat({ label, value, sub, term, tone, className, to }: { label: ReactNode; value: ReactNode; sub?: ReactNode; term?: string; tone?: "good" | "bad" | "warn" | "accent"; className?: string; to?: string }) {
+export function Stat({ label, value, sub, term, hint, tone, className, to }: { label: ReactNode; value: ReactNode; sub?: ReactNode; term?: string; hint?: ReactNode; tone?: "good" | "bad" | "warn" | "accent"; className?: string; to?: string }) {
   const body = (
     <>
       <div className="flex items-center gap-1.5 text-[13.5px] text-muted">
         {label}
-        {term && <TermTip term={term} />}
+        {(term || hint) && <TermTip term={term} hint={hint} />}
         {to && <ArrowUpRight className="ml-auto h-4 w-4 text-faint transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent" />}
       </div>
       <div

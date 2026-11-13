@@ -2,13 +2,14 @@ import { AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { ANIM, AXIS_TICK, BAD, CURSOR_FILL, ChartEmpty, ChartTooltip, GOOD, GRID, NEUTRAL } from "@/components/ui/chart";
-import { TermTip } from "@/components/ui/overlay";
+import { MetricTitle, TermTip } from "@/components/ui/overlay";
 import { Link } from "react-router-dom";
 import { Collapsible, Section, Stat, StatRow } from "@/components/ui/page";
 import { Alert, Badge, Card } from "@/components/ui/primitives";
 import { cn, fmt } from "@/lib/format";
 import type { CaseRow, Comparison, RunSummary, TargetSummary } from "@/lib/types";
 import { CategoryBars, RunCharts } from "./RunCharts";
+import { MetricDetails } from "./MetricDetails";
 import { VERDICT_TONE, VerdictIcon, WinBar } from "./Verdict";
 
 const NEXT_STEP: Record<string, string> = {
@@ -60,15 +61,15 @@ function better(a: number | null, b: number | null, higherIsBetter = true): "goo
 
 function TargetTable({ targets, k, candidate }: { targets: TargetSummary[]; k: number; candidate: string }) {
   const base = targets.find((t) => t.is_baseline);
-  const cols: { key: keyof TargetSummary; label: string; term: string; fmt: (v: number | null) => string; higher: boolean }[] = [
-    { key: "ndcg", label: `nDCG@${k}`, term: "ndcg", fmt: (v) => fmt.num(v), higher: true },
-    { key: "hit1", label: "Hit@1", term: "hit1", fmt: (v) => fmt.pct(v), higher: true },
-    { key: "mrr", label: "MRR", term: "mrr", fmt: (v) => fmt.num(v), higher: true },
-    { key: "precision", label: `P@${k}`, term: "precision", fmt: (v) => fmt.num(v), higher: true },
-    { key: "error_rate", label: "실패율", term: "error_rate", fmt: (v) => fmt.pct(v, 1), higher: false },
-    { key: "empty_rate", label: "0건", term: "error_rate", fmt: (v) => fmt.pct(v, 1), higher: false },
-    { key: "latency_p50", label: "응답 p50", term: "latency", fmt: (v) => fmt.ms(v), higher: false },
-    { key: "latency_p95", label: "응답 p95", term: "latency", fmt: (v) => fmt.ms(v), higher: false },
+  const cols: { key: keyof TargetSummary; label: string; ko: string; term: string; fmt: (v: number | null) => string; higher: boolean }[] = [
+    { key: "ndcg", label: `nDCG@${k}`, ko: "순위 품질", term: "ndcg", fmt: (v) => fmt.num(v), higher: true },
+    { key: "hit1", label: "Hit@1", ko: "1위 정답률", term: "hit1", fmt: (v) => fmt.pct(v), higher: true },
+    { key: "mrr", label: "MRR", ko: "첫 정답 순위", term: "mrr", fmt: (v) => fmt.num(v), higher: true },
+    { key: "precision", label: `P@${k}`, ko: "정밀도", term: "precision", fmt: (v) => fmt.num(v), higher: true },
+    { key: "error_rate", label: "Error", ko: "호출 실패율", term: "error_rate", fmt: (v) => fmt.pct(v, 1), higher: false },
+    { key: "empty_rate", label: "Empty", ko: "0건 비율", term: "error_rate", fmt: (v) => fmt.pct(v, 1), higher: false },
+    { key: "latency_p50", label: "p50", ko: "응답 시간", term: "latency", fmt: (v) => fmt.ms(v), higher: false },
+    { key: "latency_p95", label: "p95", ko: "응답 시간", term: "latency", fmt: (v) => fmt.ms(v), higher: false },
   ];
   return (
     <Card className="overflow-x-auto">
@@ -78,7 +79,8 @@ function TargetTable({ targets, k, candidate }: { targets: TargetSummary[]; k: n
             <th className="px-5 py-3 text-left font-medium">대상</th>
             {cols.map((c) => (
               <th key={c.key} className="px-3 py-3 text-right font-medium">
-                <span className="inline-flex items-center gap-1">{c.label}<TermTip term={c.term} /></span>
+                <span className="inline-flex items-center gap-1 font-semibold text-ink/80">{c.label}<TermTip term={c.term} /></span>
+                <div className="text-[11px] font-normal text-faint">{c.ko}</div>
               </th>
             ))}
           </tr>
@@ -192,20 +194,20 @@ export function RunSummaryView({
         <Alert key={w} tone="warn" className="mb-4" icon={<AlertTriangle className="h-4 w-4" />}>{w}</Alert>
       ))}
       <div className="mb-8"><VerdictBanner cmp={cmp} onShow={onShowOutcome} /></div>
-      <Section title="핵심 지표" description={cmp.criteria?.name ? `평가 기준 · ${cmp.criteria.name} (상위 ${cmp.criteria.k}개)` : undefined}>
+      <Section title="핵심 지표" description={cmp.criteria?.name ? `평가 기준 · ${cmp.criteria.name} (상위 ${cmp.criteria.k}개) · ${candidate} vs ${cmp.baseline}` : undefined}>
         <StatRow>
-          <Stat label={`nDCG@${k} 차이`} term="ndcg_diff" value={fmt.signed(cmp.ndcg_diff)}
+          <Stat label={<MetricTitle name={`ΔnDCG@${k}`} ko="순위 품질 차이" />} term="ndcg_diff" value={fmt.signed(cmp.ndcg_diff)}
             tone={cmp.verdict.code === "improved" ? "good" : cmp.verdict.code === "regressed" ? "bad" : undefined}
             sub={<>95% 신뢰구간 {ci ? `${fmt.signed(ci[0])} ~ ${fmt.signed(ci[1])}` : "–"}<br />{fmt.num(base?.ndcg)} → {fmt.num(cand?.ndcg)} · {cmp.ndcg_cases}건</>} />
-          <Stat label="목록 비교 승률" term="pairwise" value={fmt.pct(cmp.win_rate)}
+          <Stat label={<MetricTitle name="Win rate" ko="목록 비교 승률" />} term="pairwise" value={fmt.pct(cmp.win_rate)}
             sub={<>
               <WinBar wins={cmp.wins} ties={cmp.ties} losses={cmp.losses} className="my-1.5 w-40" />
               {cmp.wins}승 {cmp.ties}무 {cmp.losses}패 · 부호 검정 p={cmp.sign_test_p === null ? "–" : cmp.sign_test_p < 0.001 ? "<0.001" : cmp.sign_test_p.toFixed(3)}
             </>} />
-          <Stat label="Hit@1" term="hit1" value={fmt.pct(cand?.hit1)} sub={<>기준 {fmt.pct(base?.hit1)} · 차이 {fmt.signedPct(cmp.hit1_diff)}<br />1위 평균 등급 {fmt.num(baseTop1, 1)} → {fmt.num(candTop1, 1)} / 3</>} />
-          <Stat label="판정 안정성" term="inconsistent"
+          <Stat label={<MetricTitle name="Hit@1" ko="1위 정답률" />} term="hit1" value={fmt.pct(cand?.hit1)} sub={<>기준 {fmt.pct(base?.hit1)} · 차이 {fmt.signedPct(cmp.hit1_diff)}<br />1위 평균 등급 {fmt.num(baseTop1, 1)} → {fmt.num(candTop1, 1)} / 3</>} />
+          <Stat label={<MetricTitle name="Consistency" ko="판정 일관성" />} term="inconsistent" hint="A·B 순서를 바꿔 두 번 물었을 때 같은 판정이 나온 비율입니다."
             value={cmp.pairwise_cases ? fmt.pct(1 - cmp.inconsistent / cmp.pairwise_cases) : "–"}
-            sub={<>순서를 바꿔도 같은 판정 · 불일치 {cmp.inconsistent}건</>} />
+            sub={<>순서 불일치 {cmp.inconsistent}건 / {cmp.pairwise_cases}건</>} />
         </StatRow>
       </Section>
       {ndcgHighHitLow && (
@@ -218,21 +220,22 @@ export function RunSummaryView({
         summary={<>순열 검정 p {pval((cmp.multiple_comparisons ?? 1) > 1 ? cmp.permutation_p_holm : cmp.permutation_p)} · 효과 크기 {fmt.num(cmp.effect_size, 2)} · 필요한 케이스 {cmp.needed_cases ? `${fmt.int(cmp.needed_cases)}건` : "–"}</>}>
         <p className="mb-4 text-[13.5px] text-muted">결론을 여러 방법으로 교차 확인합니다. 모두 같은 방향이면 믿을 만합니다.</p>
         <StatRow min={200}>
-          <Stat label={(cmp.multiple_comparisons ?? 1) > 1 ? "순열 검정 p (Holm 보정)" : "순열 검정 p"} term={(cmp.multiple_comparisons ?? 1) > 1 ? "holm" : "permutation"}
+          <Stat label={<MetricTitle name={(cmp.multiple_comparisons ?? 1) > 1 ? "Permutation p (Holm)" : "Permutation p"} ko="순열 검정" />} term={(cmp.multiple_comparisons ?? 1) > 1 ? "holm" : "permutation"}
             value={pval((cmp.multiple_comparisons ?? 1) > 1 ? cmp.permutation_p_holm : cmp.permutation_p)}
             tone={(cmp.permutation_p_holm ?? 1) < 0.05 ? (cmp.ndcg_diff ?? 0) > 0 ? "good" : "bad" : undefined}
             sub={(cmp.multiple_comparisons ?? 1) > 1 ? `보정 전 ${pval(cmp.permutation_p)} · 후보 ${cmp.multiple_comparisons}개` : "0.05 미만이면 우연으로 보기 어려움"} />
-          <Stat label="효과 크기 d_z" term="effect_size" value={fmt.num(cmp.effect_size, 2)} sub={effectLabel(cmp.effect_size)} />
-          <Stat label="필요한 케이스 수" term="needed_cases" value={cmp.needed_cases ? `${fmt.int(cmp.needed_cases)}건` : "–"}
+          <Stat label={<MetricTitle name={<>Cohen's d<sub>z</sub></>} ko="효과 크기" />} term="effect_size" value={fmt.num(cmp.effect_size, 2)} sub={effectLabel(cmp.effect_size)} />
+          <Stat label={<MetricTitle name="Required n" ko="필요 케이스 수" />} term="needed_cases" value={cmp.needed_cases ? `${fmt.int(cmp.needed_cases)}건` : "–"}
             tone={cmp.needed_cases && cmp.needed_cases > cmp.ndcg_cases ? "warn" : undefined}
             sub={cmp.needed_cases ? (cmp.needed_cases > cmp.ndcg_cases ? `지금 ${cmp.ndcg_cases}건 — 더 필요` : `지금 ${cmp.ndcg_cases}건 — 충분`) : "차이가 0 이거나 흔들림이 없어 계산 불가"} />
-          <Stat label="목록 비교 승률 95% 구간" term="win_rate_ci" value={cmp.win_rate_ci ? <Range a={fmt.pct(cmp.win_rate_ci[0])} b={fmt.pct(cmp.win_rate_ci[1])} /> : "–"}
+          <Stat label={<MetricTitle name="Win rate 95% CI" ko="승률 신뢰구간" />} term="win_rate_ci" value={cmp.win_rate_ci ? <Range a={fmt.pct(cmp.win_rate_ci[0])} b={fmt.pct(cmp.win_rate_ci[1])} /> : "–"}
             sub={`무승부를 반으로 친 승률 ${fmt.pct(cmp.win_rate_with_ties)}`} />
-          <Stat label="Hit@1 차이 95% 구간" term="hit1" value={cmp.hit1_ci ? <Range a={fmt.signedPct(cmp.hit1_ci[0])} b={fmt.signedPct(cmp.hit1_ci[1])} /> : "–"}
+          <Stat label={<MetricTitle name="ΔHit@1 95% CI" ko="1위 정답률 차이 구간" />} term="hit1" value={cmp.hit1_ci ? <Range a={fmt.signedPct(cmp.hit1_ci[0])} b={fmt.signedPct(cmp.hit1_ci[1])} /> : "–"}
             sub={`nDCG 차이 표준편차 ${fmt.num(cmp.ndcg_sd, 3)}`} />
         </StatRow>
       </Collapsible>
       <RunCharts summary={summary} k={k} cmp={cmp} />
+      <MetricDetails summary={summary} cases={cases} candidate={candidate} baseline={cmp.baseline} cmp={cmp} k={k} onOpenCase={onOpenCase} />
       <Collapsible className="mb-14" title="대상별 지표 숫자로 보기" summary="위 차트의 값을 표로 봅니다. 후보가 기준보다 좋으면 초록, 나쁘면 빨강.">
         <TargetTable targets={targets} k={k} candidate={candidate} />
         {(summary.no_relevant_cases ?? 0) > 0 && (
@@ -241,12 +244,14 @@ export function RunSummaryView({
           </div>
         )}
       </Collapsible>
-      <Section title="케이스별 변화" description={`막대 하나가 케이스 하나이고, 높이는 nDCG 차이입니다. 위로 솟으면 ${candidate}가, 아래로 내려가면 기준이 더 좋습니다. 위 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.`}
+      <Section title={<MetricTitle name={`ΔnDCG@${k} by case`} ko="케이스별 nDCG 차이" term="ndcg_diff"
+        hint={`막대 하나가 케이스 하나이고, 높이는 ${candidate} − 기준의 nDCG 차이입니다. 위로 솟으면 ${candidate}가, 아래로 내려가면 기준이 더 좋습니다. 막대를 누르면 상세를 엽니다. 결론의 승·패는 ‘목록 비교’ 판정이라 개수가 다를 수 있습니다.`} />}
         actions={<div className="flex gap-3 text-[12.5px] text-muted"><span className="text-good">개선 {cmp.improved_cases}</span><span>같음 {cmp.same_cases}</span><span className="text-bad">저하 {cmp.regressed_cases}</span></div>}>
         <Card className="py-5"><DiffChart cases={cases} onOpen={onOpenCase} /></Card>
       </Section>
       {(summary.by_category?.length ?? 0) > 1 && (
-        <Section title="분류별" description={`분류마다 ${candidate} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다. 막대에 올리면 실제 값이 보입니다.`}>
+        <Section title={<MetricTitle name={`ΔnDCG@${k} by category`} ko="분류별 nDCG 차이" term="ndcg_diff"
+          hint={`분류마다 ${candidate} 가 기준보다 nDCG 가 얼마나 높은지(초록)·낮은지(빨강) 봅니다. 막대에 올리면 실제 값이 보입니다.`} />}>
           <div className="mb-6 border-y border-line py-6"><CategoryBars summary={summary} targets={targets} candidate={candidate} /></div>
           <Collapsible title="분류별 숫자로 보기">
           <div className="overflow-x-auto">

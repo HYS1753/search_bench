@@ -1,6 +1,6 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { HelpCircle, X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/format";
 import { TERMS } from "@/lib/glossary";
@@ -168,24 +168,39 @@ export function Menu({ trigger, items, align = "end" }: {
 }
 
 /** 지표 이름 옆 (?) — 정의·읽는 법·알 수 있는 것을 보여 준다. */
-export function TermTip({ term, className }: { term: keyof typeof TERMS | string; className?: string }) {
-  const t = TERMS[term];
-  if (!t) return null;
+export function TermTip({ term, hint, className }: { term?: keyof typeof TERMS | string; hint?: ReactNode; className?: string }) {
+  const t = term ? TERMS[term] : undefined;
+  if (!t && !hint) return null;
   return (
     <Tooltip
       content={
         <div className="space-y-1.5">
-          <div className="font-semibold">{t.name}</div>
-          <div>{t.short}</div>
-          <div className="opacity-80">읽는 법 · {t.read}</div>
-          <div className="opacity-80">알 수 있는 것 · {t.learn}</div>
+          {t && <div className="font-semibold">{t.name}</div>}
+          {hint && <div>{hint}</div>}
+          {t && <div className={cn(hint && "opacity-80")}>{t.short}</div>}
+          {t && <div className="opacity-80">읽는 법 · {t.read}</div>}
+          {t && <div className="opacity-80">알 수 있는 것 · {t.learn}</div>}
         </div>
       }
     >
-      <button type="button" className={cn("inline-flex text-faint hover:text-muted", className)} aria-label={`${t.name} 설명`}>
-        <HelpCircle className="h-3.5 w-3.5" />
+      <button type="button" className={cn("inline-flex shrink-0 text-faint transition-colors hover:text-accent", className)} aria-label={`${t?.name ?? "설명"} 보기`}>
+        <Info className="h-3.5 w-3.5" />
       </button>
     </Tooltip>
+  );
+}
+
+/**
+ * 지표 제목: 정식 명칭(영문 표기) + 짧은 한국어 이름 + (i).
+ * 긴 설명(‘~할 때 보는 지표’)은 화면에 펼치지 않고 (i) 안에 둔다.
+ */
+export function MetricTitle({ name, ko, term, hint, className }: { name: ReactNode; ko?: ReactNode; term?: string; hint?: ReactNode; className?: string }) {
+  return (
+    <span className={cn("inline-flex min-w-0 flex-wrap items-baseline gap-x-1.5", className)}>
+      <span className="font-semibold text-ink">{name}</span>
+      {ko && <span className="font-normal text-muted">{ko}</span>}
+      {(term || hint) && <TermTip term={term} hint={hint} className="self-center" />}
+    </span>
   );
 }
 
