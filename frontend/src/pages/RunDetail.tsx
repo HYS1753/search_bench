@@ -391,7 +391,16 @@ export default function RunDetail() {
         </div>
       )}
 
-      <CaseDrawer run={r} caseId={caseId} onClose={() => setCaseId(null)} />
+      {(() => {
+        const ids = (cases.data?.items ?? []).map((x) => x.id);
+        const i = caseId === null ? -1 : ids.indexOf(caseId);
+        return (
+          <CaseDrawer run={r} caseId={caseId} onClose={() => setCaseId(null)}
+            position={i >= 0 ? `${i + 1} / ${ids.length}` : undefined}
+            onPrev={i > 0 ? () => setCaseId(ids[i - 1]) : undefined}
+            onNext={i >= 0 && i < ids.length - 1 ? () => setCaseId(ids[i + 1]) : undefined} />
+        );
+      })()}
       {sharing && <ShareDialog runId={r.id} onClose={() => setSharing(false)} />}
       {confirm.node}
     </>

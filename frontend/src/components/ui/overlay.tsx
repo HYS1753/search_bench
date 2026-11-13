@@ -60,6 +60,7 @@ export function Drawer({
   footer,
   width = "max-w-3xl",
   scrollKey,
+  headerActions,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -70,6 +71,8 @@ export function Drawer({
   width?: string;
   /** 값이 바뀌면(예: 마법사 단계) 본문을 맨 위로 올린다 */
   scrollKey?: unknown;
+  /** 닫기 버튼 왼쪽에 놓을 버튼(이전·다음 등) */
+  headerActions?: ReactNode;
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -93,9 +96,12 @@ export function Drawer({
                 <DialogPrimitive.Description className="sr-only">상세</DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close className="rounded-lg p-1.5 text-muted hover:bg-subtle hover:text-ink">
-              <X className="h-4 w-4" />
-            </DialogPrimitive.Close>
+            <div className="flex shrink-0 items-center gap-1">
+              {headerActions}
+              <DialogPrimitive.Close className="rounded-lg p-1.5 text-muted hover:bg-subtle hover:text-ink">
+                <X className="h-4 w-4" />
+              </DialogPrimitive.Close>
+            </div>
           </div>
           <div ref={bodyRef} className="scroll-thin flex-1 overflow-y-auto px-6 py-5">{children}</div>
           {footer && <div className="flex justify-end gap-2 border-t border-line bg-panel px-6 py-3">{footer}</div>}

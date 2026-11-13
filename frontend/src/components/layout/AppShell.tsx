@@ -229,10 +229,10 @@ function Sidebar({ onNavigate, theme, setTheme, onSearch }: { onNavigate?: () =>
           </kbd>
         </button>
       </div>
-      <nav className="scroll-thin flex-1 space-y-6 overflow-y-auto px-4 pb-4">
+      <nav className="scroll-thin flex-1 space-y-4 overflow-y-auto px-4 pb-4">
         {NAV.map((g) => ({ ...g, items: g.items.filter((it) => !it.admin || can(me, "admin")) })).map((g, i) => (
           <div key={i}>
-            {g.group && <div className="mb-2 px-3 text-[13px] text-muted">{g.group}</div>}
+            {g.group && <div className="mb-1 px-3 text-[12.5px] text-muted">{g.group}</div>}
             <div className="space-y-0.5">
               {g.items.map((it) => (
                 <NavLink
@@ -242,7 +242,7 @@ function Sidebar({ onNavigate, theme, setTheme, onSearch }: { onNavigate?: () =>
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
-                      "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] transition-[background-color,color,box-shadow] duration-200",
+                      "group relative flex items-center gap-3 rounded-2xl px-3 py-2 text-[14.5px] transition-[background-color,color,box-shadow] duration-200",
                       isActive ? "bg-panel font-semibold text-ink shadow-[0_1px_3px_rgb(16_24_40/0.08),0_4px_14px_rgb(16_24_40/0.05)]" : "text-ink/75 hover:bg-panel/60 hover:text-ink",
                     )
                   }

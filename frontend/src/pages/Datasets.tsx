@@ -196,7 +196,7 @@ export default function Datasets() {
                   <Link to={`/datasets/${d.id}?suite=${suiteId}`}><Button size="sm" icon={<Wrench className="h-3.5 w-3.5" />}>고치기</Button></Link>
                 ) : (
                   <Link to={`/runs/new?dataset=${d.id}${suiteId || d.suite_id ? `&suite=${suiteId || d.suite_id}` : ""}`}>
-                    <Button size="sm" variant={c?.status === "ready" ? "primary" : "secondary"} icon={<Play className="h-3.5 w-3.5" />}>평가</Button>
+                    <Button size="sm" icon={<Play className="h-3.5 w-3.5" />}>평가</Button>
                   </Link>
                 )}
                 <Button size="icon" variant="ghost" aria-label="삭제" onClick={() => remove(d)}><Trash2 className="h-4 w-4" /></Button>

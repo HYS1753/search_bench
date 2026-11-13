@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Children, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/format";
 import { TermTip } from "./overlay";
@@ -9,7 +9,8 @@ import { TermTip } from "./overlay";
 export function PageHeader({ title, description, actions, eyebrow }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <header className="mb-10">
-      {eyebrow && <div className="mb-2 text-[13px] font-medium text-muted">{eyebrow}</div>}
+      {/* 그룹 이름은 사이드바에 이미 보이므로 사이드바가 접히는 좁은 화면에서만 보여 준다 */}
+      {eyebrow && <div className="mb-2 text-[13px] font-medium text-muted lg:hidden">{eyebrow}</div>}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <h1 className="min-w-0 break-keep text-[28px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -65,10 +66,12 @@ export function Stat({ label, value, sub, term, tone, className, to }: { label: 
 }
 
 export function StatRow({ children, className, min = 250 }: { children: ReactNode; className?: string; min?: number }) {
+  // 좁은 화면: 최소 폭(min) 기준으로 자동 줄바꿈. 넓은 화면(xl): 칸 수만큼 한 줄 — 4칸 줄에 5번째 칸이 혼자 남는 일을 막는다.
+  const n = Math.min(Children.toArray(children).filter(Boolean).length, 6);
   return (
     <div
-      className={cn("grid overflow-hidden border-t border-line", className)}
-      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}px, 100%), 1fr))` }}
+      className={cn("grid overflow-hidden border-t border-line [grid-template-columns:var(--cols)] xl:[grid-template-columns:var(--cols-xl)]", className)}
+      style={{ "--cols": `repeat(auto-fit, minmax(min(${min}px, 100%), 1fr))`, "--cols-xl": `repeat(${n || 1}, minmax(0, 1fr))` } as CSSProperties}
     >
       {children}
     </div>

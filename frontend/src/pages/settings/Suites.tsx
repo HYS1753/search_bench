@@ -641,8 +641,8 @@ export default function Suites() {
                 </Link>
               </div>
               <div className="flex flex-wrap items-center gap-1">
-                <Link to={`/compare?suite=${s.id}`}><Button size="sm" variant="ghost">단건 검색 비교<ArrowRight className="h-3.5 w-3.5" /></Button></Link>
-                <Link to={`/runs/new?suite=${s.id}`}><Button size="sm" variant="primary" icon={<Play className="h-3.5 w-3.5" />}>평가</Button></Link>
+                <Link to={`/compare?suite=${s.id}`}><Button size="sm" variant="ghost">단건 비교</Button></Link>
+                <Link to={`/runs/new?suite=${s.id}`}><Button size="sm" icon={<Play className="h-3.5 w-3.5" />}>평가</Button></Link>
                 <Button size="sm" icon={<Pencil className="h-3.5 w-3.5" />} disabled={!targets.data} onClick={() => targets.data && setEditing(toForm(s, targets.data))}>수정</Button>
                 <Button size="icon" variant="ghost" aria-label="삭제" onClick={() => remove(s)}><Trash2 className="h-4 w-4" /></Button>
               </div>

@@ -313,7 +313,7 @@ export default function Models() {
               <div className="flex items-center gap-1">
                 <Button size="sm" icon={<Zap className="h-3.5 w-3.5" />} loading={testing === m.id} onClick={() => test(m)}>연결 테스트</Button>
                 {!m.is_default && <Button size="sm" variant="ghost" onClick={() => setDefault.mutate(m.id)}>기본으로</Button>}
-                <Button size="icon" variant="ghost" aria-label="편집" onClick={() => setEditing(toForm(m))}><Pencil className="h-4 w-4" /></Button>
+                <Button size="sm" icon={<Pencil className="h-3.5 w-3.5" />} onClick={() => setEditing(toForm(m))}>수정</Button>
                 <Button size="icon" variant="ghost" aria-label="삭제" onClick={() => remove(m)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>

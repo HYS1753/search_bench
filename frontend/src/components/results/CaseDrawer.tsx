@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
-import { useMemo } from "react";
+import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { Drawer } from "@/components/ui/overlay";
 import { KeyValue, Section } from "@/components/ui/page";
 import { Alert, Badge, Code, Spinner } from "@/components/ui/primitives";
@@ -9,7 +9,21 @@ import { fmt } from "@/lib/format";
 import type { CaseDetail, Run } from "@/lib/types";
 import { PairwiseCard, SideBySide } from "./SideBySide";
 
-export function CaseDrawer({ run, caseId, onClose }: { run: Run; caseId: number | null; onClose: () => void }) {
+export function CaseDrawer({ run, caseId, onClose, onPrev, onNext, position }: {
+  run: Run; caseId: number | null; onClose: () => void;
+  onPrev?: () => void; onNext?: () => void; position?: string;
+}) {
+  useEffect(() => {
+    if (caseId === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, [contenteditable]")) return;
+      if ((e.key === "ArrowDown" || e.key === "j") && onNext) { e.preventDefault(); onNext(); }
+      if ((e.key === "ArrowUp" || e.key === "k") && onPrev) { e.preventDefault(); onPrev(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [caseId, onNext, onPrev]);
   const detail = useQuery({
     queryKey: ["run-case", run.id, caseId],
     queryFn: () => api.get<CaseDetail>(`/runs/${run.id}/cases/${caseId}`),
@@ -38,8 +52,17 @@ export function CaseDrawer({ run, caseId, onClose }: { run: Run; caseId: number 
   const prefixes = Object.fromEntries(Object.entries(byMember).map(([l, cr]) => [l, cr.id === primaryId ? "" : `@${cr.id}:`]));
   const kBy = Object.fromEntries(Object.entries(byMember).map(([l, cr]) => [l, cr.k]));
   return (
-    <Drawer open={caseId !== null} onOpenChange={(o) => !o && onClose()} width="max-w-6xl"
+    <Drawer open={caseId !== null} onOpenChange={(o) => !o && onClose()} width="max-w-4xl" scrollKey={caseId}
       title={c ? `케이스 ${c.case_key}` : "케이스"}
+      headerActions={(onPrev || onNext) && (
+        <div className="flex items-center gap-1">
+          {position && <span className="num mr-1 text-[12.5px] text-faint">{position}</span>}
+          <button type="button" aria-label="이전 케이스 (↑)" title="이전 케이스 (↑)" disabled={!onPrev} onClick={onPrev}
+            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-subtle hover:text-ink disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
+          <button type="button" aria-label="다음 케이스 (↓)" title="다음 케이스 (↓)" disabled={!onNext} onClick={onNext}
+            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-subtle hover:text-ink disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
+        </div>
+      )}
       subtitle={c ? [c.category, fmt.inputs(c.inputs[run.input_fields[0]?.key])].filter(Boolean).join(" · ") : undefined}>
       {!c ? (
         <div className="flex justify-center py-20"><Spinner /></div>
